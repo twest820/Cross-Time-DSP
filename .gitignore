@@ -1,0 +1,19 @@
+# User-specific files 
+*.suo
+*.user
+
+# Build results 
+bin/
+packages/
+obj/
+**/StyleCop.Cache
+
+# Profiling results
+*.vsp
+*.vspx
+
+# Timelapse output
+Backups/
+
+# Visual Studio 2015 cache/options directory 
+.vs/

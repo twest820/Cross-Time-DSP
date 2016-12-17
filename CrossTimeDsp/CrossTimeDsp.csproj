@@ -1,0 +1,120 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{2ACACAAF-DE8F-4637-AD15-A59EDE5EA107}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>CrossTimeDsp</RootNamespace>
+    <AssemblyName>CrossTimeDsp</AssemblyName>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkProfile>
+    </TargetFrameworkProfile>
+    <FileAlignment>512</FileAlignment>
+    <SccProjectName>SAK</SccProjectName>
+    <SccLocalPath>SAK</SccLocalPath>
+    <SccAuxPath>SAK</SccAuxPath>
+    <SccProvider>SAK</SccProvider>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <OutputPath>bin\Debug\</OutputPath>
+    <Prefer32Bit>false</Prefer32Bit>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <OutputPath>bin\Release\</OutputPath>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.configuration" />
+    <Reference Include="System.XML" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Common\ProcessExecutor.cs" />
+    <Compile Include="Common\ConsoleTraceListener.cs" />
+    <Compile Include="Configuration\BiquadElement.cs" />
+    <Compile Include="Configuration\ConfigurationConstants.cs" />
+    <Compile Include="Configuration\CrossTimeDspSection.cs" />
+    <Compile Include="Configuration\Encoding.cs" />
+    <Compile Include="Configuration\EngineElement.cs" />
+    <Compile Include="Configuration\FilterElement.cs" />
+    <Compile Include="Configuration\FilterPrecision.cs" />
+    <Compile Include="Configuration\FiltersElement.cs" />
+    <Compile Include="Configuration\FilterType.cs" />
+    <Compile Include="Configuration\FlacElement.cs" />
+    <Compile Include="Configuration\MP3Element.cs" />
+    <Compile Include="Configuration\OutputElement.cs" />
+    <Compile Include="Configuration\Q31AdaptiveElement.cs" />
+    <Compile Include="Configuration\TimeDirection.cs" />
+    <Compile Include="Configuration\WavElement.cs" />
+    <Compile Include="Configuration\XmlConfigurationHandler.cs" />
+    <Compile Include="CrossTimeEngine.cs" />
+    <Compile Include="Dsp\BiquadDouble.cs" />
+    <Compile Include="Dsp\BiquadQ31.cs" />
+    <Compile Include="Dsp\BiquadQ31_32x64.cs" />
+    <Compile Include="Dsp\BiquadQ31_64x64.cs" />
+    <Compile Include="Dsp\DoubleSampleConverter.cs" />
+    <Compile Include="Dsp\DoubleSampleEnumerator.cs" />
+    <Compile Include="Dsp\DspConstants.cs" />
+    <Compile Include="Dsp\FilterBank.cs" />
+    <Compile Include="Dsp\FirstOrderFilterDouble.cs" />
+    <Compile Include="Dsp\FirstOrderFilterQ31.cs" />
+    <Compile Include="Dsp\FirstOrderFilterQ31_32x64.cs" />
+    <Compile Include="Dsp\Gain.cs" />
+    <Compile Include="Dsp\GainDouble.cs" />
+    <Compile Include="Dsp\GainQ31.cs" />
+    <Compile Include="Dsp\GainQ31_64x64.cs" />
+    <Compile Include="Dsp\IFilter.cs" />
+    <Compile Include="Dsp\Int16SampleConverter.cs" />
+    <Compile Include="Dsp\Int24SampleConverter.cs" />
+    <Compile Include="Dsp\Int32SampleConverter.cs" />
+    <Compile Include="Dsp\ISampleConverter.cs" />
+    <Compile Include="Dsp\Q31.cs" />
+    <Compile Include="Dsp\Q63.cs" />
+    <Compile Include="Dsp\SampledStreamConverter.cs" />
+    <Compile Include="Dsp\ReversedTimeBuffer.cs" />
+    <Compile Include="Dsp\ReversedTimeBufferEnumerator.cs" />
+    <Compile Include="Dsp\SampledStream.cs" />
+    <Compile Include="Encodings\Flac\FlacConstants.cs" />
+    <Compile Include="Encodings\Flac\FlacConverter.cs" />
+    <Compile Include="Encodings\MP3\MP3Constants.cs" />
+    <Compile Include="Encodings\MP3\MP3Converter.cs" />
+    <Compile Include="Encodings\Ogg\VorbisConstants.cs" />
+    <Compile Include="Encodings\MetadataType.cs" />
+    <Compile Include="Encodings\Wav\ChannelMask.cs" />
+    <Compile Include="Encodings\Wav\Chunk.cs" />
+    <Compile Include="Encodings\Wav\FormatTag.cs" />
+    <Compile Include="Encodings\Wav\WavConstants.cs" />
+    <Compile Include="Encodings\Wav\WaveFormat.cs" />
+    <Compile Include="Encodings\Wav\WaveFormatExtensible.cs" />
+    <Compile Include="Encodings\Wav\WaveFormatEx.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Encodings\Wav\WavStream.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
