@@ -2,7 +2,7 @@
 
 namespace CrossTimeDsp.Dsp
 {
-    internal class GainQ31 : IFilter<Int32>
+    internal class GainQ31 : IFilter<int>
     {
         private Q31 scaleFactor;
 
@@ -11,19 +11,18 @@ namespace CrossTimeDsp.Dsp
             this.scaleFactor = new Q31(scaleFactor);
         }
 
-        private GainQ31(GainQ31 other)
+        public void Filter(int[] block, int offset)
         {
-            this.scaleFactor = other.scaleFactor;
+            int maxSample = offset + Constant.FilterBlockSizeInInts;
+            for (int sample = offset; sample < maxSample; ++sample)
+            {
+                block[sample] = (int)((this.scaleFactor * block[sample]) >> this.scaleFactor.FractionalBits);
+            }
         }
 
-        public IFilter<Int32> Clone()
+        public void FilterReverse(int[] block, int offset)
         {
-            return new GainQ31(this);
-        }
-
-        public Int32 Filter(Int32 sample)
-        {
-            return (Int32)((this.scaleFactor * sample) >> this.scaleFactor.FractionalBits);
+            this.Filter(block, offset);
         }
     }
 }

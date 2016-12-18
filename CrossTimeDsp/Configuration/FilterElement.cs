@@ -1,6 +1,6 @@
-﻿using System;
+﻿using CrossTimeDsp.Dsp;
+using System;
 using System.Xml.Serialization;
-using CrossTimeDsp.Dsp;
 
 namespace CrossTimeDsp.Configuration
 {
@@ -18,36 +18,36 @@ namespace CrossTimeDsp.Configuration
         [XmlAttribute(ConfigurationConstants.Type)]
         public FilterType Type { get; set; }
 
-        private IFilter<TSample> Create<TSample>(double b0, double b1, double a0, double a1, FilterPrecision precision) where TSample : struct
+        private IFilter<TSample> Create<TSample>(double b0, double b1, double a0, double a1, FilterPrecision precision, int channels) where TSample : struct
         {
             switch (precision)
             {
                 case FilterPrecision.Double:
-                    return (IFilter<TSample>)new FirstOrderFilterDouble(b0, b1, a0, a1);
+                    return (IFilter<TSample>)new FirstOrderFilterDouble(b0, b1, a0, a1, channels);
                 case FilterPrecision.Q31:
-                    return (IFilter<TSample>)new FirstOrderFilterQ31(b0, b1, a0, a1);
+                    return (IFilter<TSample>)new FirstOrderFilterQ31(b0, b1, a0, a1, channels);
                 case FilterPrecision.Q31_32x64:
-                    return (IFilter<TSample>)new FirstOrderFilterQ31_32x64(b0, b1, a0, a1);
+                    return (IFilter<TSample>)new FirstOrderFilterQ31_32x64(b0, b1, a0, a1, channels);
                 case FilterPrecision.Q31_64x64:
-                    return (IFilter<TSample>)new FirstOrderFilterQ31_32x64(b0, b1, a0, a1);
+                    return (IFilter<TSample>)new FirstOrderFilterQ31_32x64(b0, b1, a0, a1, channels);
                 default:
                     throw new NotSupportedException(String.Format("Unhandled filter precision {0}.", precision));
             }
         }
 
-        internal virtual IFilter<TSample> Create<TSample>(double fs, EngineElement engine) where TSample : struct
+        internal virtual IFilter<TSample> Create<TSample>(double fs, EngineElement engine, int channels) where TSample : struct
         {
             FilterPrecision precision = this.MaybeResolveAdaptiveFilterPrecision(fs, engine);
             switch (this.Type)
             {
                 case FilterType.Allpass:
-                    return this.CreateAllpassDouble<TSample>(fs, precision);
+                    return this.CreateAllpassDouble<TSample>(fs, precision, channels);
                 default:
                     throw new NotSupportedException(String.Format("Unhandled filter type {0}.", this.Type));
             }
         }
 
-        private IFilter<TSample> CreateAllpassDouble<TSample>(double fs, FilterPrecision precision) where TSample : struct
+        private IFilter<TSample> CreateAllpassDouble<TSample>(double fs, FilterPrecision precision, int channels) where TSample : struct
         {
             double w0 = this.GetW0(fs);
             double c = (Math.Tan(w0 / 2.0) - 1.0) / (Math.Tan(w0 / 2.0) + 1.0);
@@ -55,7 +55,7 @@ namespace CrossTimeDsp.Configuration
             double b1 = 1.0;
             double a0 = 1.0;
             double a1 = c;
-            return this.Create<TSample>(b0, b1, a0, a1, precision);
+            return this.Create<TSample>(b0, b1, a0, a1, precision, channels);
         }
 
         protected double GetW0(double fs)

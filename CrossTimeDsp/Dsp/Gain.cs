@@ -1,5 +1,5 @@
-﻿using System;
-using CrossTimeDsp.Configuration;
+﻿using CrossTimeDsp.Configuration;
+using System;
 
 namespace CrossTimeDsp.Dsp
 {

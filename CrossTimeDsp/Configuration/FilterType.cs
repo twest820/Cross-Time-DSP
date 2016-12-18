@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace CrossTimeDsp.Configuration
+﻿namespace CrossTimeDsp.Configuration
 {
     public enum FilterType
     {

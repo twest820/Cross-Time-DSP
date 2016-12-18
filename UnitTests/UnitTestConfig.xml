@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<crossTimeDsp>
+  <engine precision="Double" reverseTimeAntiClippingAttenuationInDB="-10">
+    <q31Adaptive q31_32x64_Threshold="0.02" q31_64x64_Threshold="0.002"/>
+  </engine>
+  <filters>
+    <biquad timeDirection="Reverse" type="Allpass" f0="150" q="0.70710678118655"/>
+    <biquad timeDirection="Reverse" type="Allpass" f0="200" q="1.0"/>
+    <biquad timeDirection="Reverse" type="Allpass" f0="1700" q="1.0"/>
+    <firstOrder timeDirection="Reverse" type="Allpass" f0="40"/>
+    <firstOrder timeDirection="Reverse" type="Allpass" f0="200"/>
+    <firstOrder timeDirection="Reverse" type="Allpass" f0="1700"/>
+  </filters>
+  <output encoding="Wave" bitsPerSample="24">
+    <collidingFileNamePostfix> - Cross Time DSP</collidingFileNamePostfix>
+  </output>
+</crossTimeDsp>

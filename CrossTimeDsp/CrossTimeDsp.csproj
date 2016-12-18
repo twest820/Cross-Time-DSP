@@ -6,7 +6,7 @@
     <ProductVersion>8.0.30703</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{2ACACAAF-DE8F-4637-AD15-A59EDE5EA107}</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>CrossTimeDsp</RootNamespace>
     <AssemblyName>CrossTimeDsp</AssemblyName>
@@ -32,39 +32,46 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <OutputPath>bin\Release\</OutputPath>
     <Prefer32Bit>false</Prefer32Bit>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="NAudio, Version=1.7.3.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\NAudio.1.7.3\lib\net35\NAudio.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
-    <Reference Include="System.configuration" />
+    <Reference Include="System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\WindowsPowerShell\3.0\System.Management.Automation.dll</HintPath>
+    </Reference>
     <Reference Include="System.XML" />
+    <Reference Include="TagLib.Portable, Version=2.2.0.0, Culture=neutral, PublicKeyToken=db62eba44689b5b0, processorArchitecture=MSIL">
+      <HintPath>..\packages\TagLib.Portable.1.0.4\lib\portable-net45+win+wpa81+wp8+MonoAndroid10+xamarinios10+MonoTouch10\TagLib.Portable.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Common\ProcessExecutor.cs" />
-    <Compile Include="Common\ConsoleTraceListener.cs" />
     <Compile Include="Configuration\BiquadElement.cs" />
     <Compile Include="Configuration\ConfigurationConstants.cs" />
-    <Compile Include="Configuration\CrossTimeDspSection.cs" />
+    <Compile Include="Configuration\CrossTimeDspConfiguration.cs" />
     <Compile Include="Configuration\Encoding.cs" />
     <Compile Include="Configuration\EngineElement.cs" />
     <Compile Include="Configuration\FilterElement.cs" />
     <Compile Include="Configuration\FilterPrecision.cs" />
     <Compile Include="Configuration\FiltersElement.cs" />
     <Compile Include="Configuration\FilterType.cs" />
-    <Compile Include="Configuration\FlacElement.cs" />
-    <Compile Include="Configuration\MP3Element.cs" />
     <Compile Include="Configuration\OutputElement.cs" />
     <Compile Include="Configuration\Q31AdaptiveElement.cs" />
     <Compile Include="Configuration\TimeDirection.cs" />
-    <Compile Include="Configuration\WavElement.cs" />
-    <Compile Include="Configuration\XmlConfigurationHandler.cs" />
+    <Compile Include="Constant.cs" />
     <Compile Include="CrossTimeEngine.cs" />
+    <Compile Include="CrossTimeEngineLog.cs" />
     <Compile Include="Dsp\BiquadDouble.cs" />
     <Compile Include="Dsp\BiquadQ31.cs" />
     <Compile Include="Dsp\BiquadQ31_32x64.cs" />
     <Compile Include="Dsp\BiquadQ31_64x64.cs" />
-    <Compile Include="Dsp\DoubleSampleConverter.cs" />
-    <Compile Include="Dsp\DoubleSampleEnumerator.cs" />
-    <Compile Include="Dsp\DspConstants.cs" />
     <Compile Include="Dsp\FilterBank.cs" />
     <Compile Include="Dsp\FirstOrderFilterDouble.cs" />
     <Compile Include="Dsp\FirstOrderFilterQ31.cs" />
@@ -74,39 +81,23 @@
     <Compile Include="Dsp\GainQ31.cs" />
     <Compile Include="Dsp\GainQ31_64x64.cs" />
     <Compile Include="Dsp\IFilter.cs" />
-    <Compile Include="Dsp\Int16SampleConverter.cs" />
-    <Compile Include="Dsp\Int24SampleConverter.cs" />
-    <Compile Include="Dsp\Int32SampleConverter.cs" />
-    <Compile Include="Dsp\ISampleConverter.cs" />
     <Compile Include="Dsp\Q31.cs" />
     <Compile Include="Dsp\Q63.cs" />
-    <Compile Include="Dsp\SampledStreamConverter.cs" />
-    <Compile Include="Dsp\ReversedTimeBuffer.cs" />
-    <Compile Include="Dsp\ReversedTimeBufferEnumerator.cs" />
-    <Compile Include="Dsp\SampledStream.cs" />
-    <Compile Include="Encodings\Flac\FlacConstants.cs" />
-    <Compile Include="Encodings\Flac\FlacConverter.cs" />
-    <Compile Include="Encodings\MP3\MP3Constants.cs" />
-    <Compile Include="Encodings\MP3\MP3Converter.cs" />
-    <Compile Include="Encodings\Ogg\VorbisConstants.cs" />
-    <Compile Include="Encodings\MetadataType.cs" />
-    <Compile Include="Encodings\Wav\ChannelMask.cs" />
-    <Compile Include="Encodings\Wav\Chunk.cs" />
-    <Compile Include="Encodings\Wav\FormatTag.cs" />
-    <Compile Include="Encodings\Wav\WavConstants.cs" />
-    <Compile Include="Encodings\Wav\WaveFormat.cs" />
-    <Compile Include="Encodings\Wav\WaveFormatExtensible.cs" />
-    <Compile Include="Encodings\Wav\WaveFormatEx.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Encodings\Wav\WavStream.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="Dsp\SampleType.cs" />
+    <Compile Include="Dsp\SampleTypeExtensions.cs" />
+    <Compile Include="Dsp\SampleBlock.cs" />
+    <Compile Include="Dsp\SampleBuffer.cs" />
+    <Compile Include="Dsp\StreamPerformance.cs" />
+    <Compile Include="GlobalSuppressions.cs" />
+    <Compile Include="SyncFiles.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config">
+    <Content Include="ExampleConfig.xml">
       <SubType>Designer</SubType>
-    </None>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

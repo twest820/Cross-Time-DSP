@@ -9,14 +9,18 @@
             this.gain = gain;
         }
 
-        public IFilter<double> Clone()
+        public void Filter(double[] block, int offset)
         {
-            return new GainDouble(this.gain);
+            int maxSample = offset + Constant.FilterBlockSizeInDoubles;
+            for (int sample = offset; sample < maxSample; ++sample)
+            {
+                block[sample] *= this.gain;
+            }
         }
 
-        public double Filter(double sample)
+        public void FilterReverse(double[] block, int offset)
         {
-            return this.gain * sample;
+            this.Filter(block, offset);
         }
     }
 }

@@ -1,201 +1,194 @@
 ﻿using CrossTimeDsp.Configuration;
 using CrossTimeDsp.Dsp;
-using CrossTimeDsp.Encodings;
-using CrossTimeDsp.Encodings.Flac;
-using CrossTimeDsp.Encodings.MP3;
-using CrossTimeDsp.Encodings.Wav;
+using NAudio.MediaFoundation;
+using NAudio.Wave;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Reflection;
-using System.Threading;
+using System.Linq;
 using System.Threading.Tasks;
+using TagLib;
+using File = System.IO.File;
+using TagFile = TagLib.File;
 
 namespace CrossTimeDsp
 {
-    public class CrossTimeEngine
+    internal class CrossTimeEngine : IDisposable
     {
         private const double ClipWarningThreshold = 0.01;
-        private static readonly TimeSpan FileDeletionRetryInterval = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan FileDeletionRetryInterval = TimeSpan.FromMilliseconds(250);
 
-        private DateTime configurationLastWriteTimeUtc;
+        private bool disposed;
+        private CrossTimeEngineLog log;
 
-        public CrossTimeDspSection Configuration { get; private set; }
+        public CrossTimeDspConfiguration Configuration { get; private set; }
+        public bool Stopping { get; set; }
 
-        public CrossTimeEngine()
+        public CrossTimeEngine(string configurationFilePath, CrossTimeEngineLog log)
         {
-            this.Configuration = CrossTimeDspSection.Load();
-            // .NET configuration has many possible configuration files where Cross Time DSP settings could potentially be specified (user 
-            // config, hosting process config, dll config, machine config...), the majority of which are rarely used
-            // instead of trying to probe all possible configuration sources, which will most likely miss some and possibly pull in edits
-            // not relevant to Cross Time DSP, it is required to edit Cross Time DSP's app.config directly to trigger an update of existing
-            // output files---users using alternate configuration mechanisms will need to delete the output files manually
-            string appConfigPath = String.Format("{0}.config", Assembly.GetExecutingAssembly().Location);
-            this.configurationLastWriteTimeUtc = File.GetLastWriteTimeUtc(appConfigPath);
+            this.Configuration = CrossTimeDspConfiguration.Load(configurationFilePath);
+            this.disposed = false;
+            this.log = log;
+            this.Stopping = false;
+
+            MediaFoundationApi.Startup();
         }
 
-        public void FilterFile(string inputFilePath)
+        public void Dispose()
         {
-            this.FilterFile(inputFilePath, this.GetOutputFilePathInSameDirectory(inputFilePath, this.Configuration.Output.Encoding));
+            this.Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
-        public void FilterFile(string inputFilePath, string outputFilePath)
+        protected virtual void Dispose(bool disposing)
+        {
+            if (this.disposed)
+            {
+                return;
+            }
+
+            if (disposing)
+            {
+                MediaFoundationApi.Shutdown();
+            }
+
+            this.disposed = true;
+        }
+
+        private void FilterFile(string inputFilePath, string outputFilePath)
         {
             // nothing to do if the output file already exists and is newer than both the input file and Cross Time DSP's app.config file
             if (File.Exists(outputFilePath))
             {
                 DateTime inputLastWriteTimeUtc = File.GetLastWriteTimeUtc(inputFilePath);
                 DateTime outputLastWriteTimeUtc = File.GetLastWriteTimeUtc(outputFilePath);
-                if (outputLastWriteTimeUtc > inputLastWriteTimeUtc)
+                if ((outputLastWriteTimeUtc > inputLastWriteTimeUtc) && 
+                    (outputLastWriteTimeUtc > this.Configuration.LastWriteTimeUtc))
                 {
-                    Trace.TraceInformation("Skipping '{0}' as '{1}' is newer.", Path.GetFileName(inputFilePath), Path.GetFileName(outputFilePath));
+                    this.log.ReportVerbose("'{0}': skipped as '{1}' is newer.", Path.GetFileName(inputFilePath), Path.GetFileName(outputFilePath));
                     return;
                 }
             }
 
-            DateTime processingStart = DateTime.UtcNow;
-            Trace.TraceInformation("Processing '{0}' to '{1}'...", Path.GetFileName(inputFilePath), Path.GetFileName(outputFilePath));
-
-            // if input file is not wav, convert it to wav
-            string inputWavFilePath;
-            Dictionary<MetadataType, string> inputMetadata = null;
-            switch (Path.GetExtension(inputFilePath))
+            // get input
+            DateTime processingStartedUtc = DateTime.UtcNow;
+            MediaFoundationReader inputStream = new MediaFoundationReader(inputFilePath);
+            if (Constant.SampleBlockSizeInBytes % inputStream.WaveFormat.BlockAlign != 0)
             {
-                case FlacConstants.FileExtension:
-                    inputWavFilePath = Path.GetTempFileName();
-                    FlacConverter flacConverter = new FlacConverter(this.Configuration.Output.Flac.FlacPath);
-                    inputMetadata = flacConverter.ConvertFlacToWav(inputFilePath, inputWavFilePath);
-                    break;
-                case MP3Constants.FileExtension:
-                    inputWavFilePath = Path.GetTempFileName();
-                    MP3Converter mp3Converter = new MP3Converter(this.Configuration.Output.MP3.LamePath);
-                    mp3Converter.ConvertMP3ToWav(inputFilePath, inputWavFilePath);
-                    break;
-                case WavConstants.FileExtension:
-                    inputWavFilePath = inputFilePath;
-                    break;
-                default:
-                    throw new NotSupportedException(String.Format("Unknown file type associated with the extension of '{0}'.", inputFilePath));
+                this.log.ReportError("'{0}': cannot be processed as sample block size of {0} bytes is not an exact multiple of the input block alignment of {1} bytes.", Path.GetFileName(inputFilePath), Constant.SampleBlockSizeInBytes, inputStream.WaveFormat.BlockAlign);
+                return;
             }
 
-            // load input file
-            WavStream inputFile = new WavStream(inputWavFilePath);
+            // do the filtering
+            StreamPerformance streamMetrics;
+            WaveStream outputStream = this.FilterStream(inputStream, out streamMetrics);
+
+            // encourage garbage collection of buffers (including any reverse time buffer allocated by FilterStream())
+            // If this isn't done it's likely processing large tracks will result in memory bloat as sampleBuffer is a long lived object and likely gets promoted 
+            // to an older generation, meaning FilterFile() can get invoked again before sampleBuffer gets collected.
+            GC.Collect();
+            if (this.Stopping)
+            {
+                // if the stop flag was set during filtering outputStream will be null
+                return;
+            }
 
             // ensure output directory exists so that output file write succeeds
-            // this may not be needed right away if an intermediate .wav file is generated, but it'll be needed sooner or later and it's
-            // simplest to do the generation before output begins
             string outputDirectoryPath = Path.GetDirectoryName(outputFilePath);
             if (String.IsNullOrEmpty(outputDirectoryPath) == false && Directory.Exists(outputDirectoryPath) == false)
             {
                 Directory.CreateDirectory(outputDirectoryPath);
             }
 
-            // create output file
-            // file name to write to depends on whether the .wav is an intermediate .wav which will be transcoded to another format or if
-            // the .wav is the final output file
-            string outputWavFilePath = outputFilePath;
-            if (this.Configuration.Output.Encoding != Encoding.Wav)
+            // write output file
+            MediaType outputMediaType;
+            if (this.Configuration.Output.Encoding == Encoding.Wave)
             {
-                outputWavFilePath = Path.GetTempFileName();
+                // work around NAudio bug: MediaFoundationEncoder supports Wave files but GetOutputMediaTypes() fails on Wave
+                outputMediaType = new MediaType(outputStream.WaveFormat);
             }
-            WavStream outputFile = new WavStream(outputWavFilePath, inputFile, this.Configuration.Output.Wav.BitsPerSample);
-
-            // actually do the filtering
-            DateTime filteringStart = DateTime.UtcNow;
-            switch (this.Configuration.Engine.Precision)
+            else
             {
-                case FilterPrecision.Double:
-                    this.FilterStream<double>(inputFile, outputFile, inputFile.TotalSamples);
-                    break;
-                case FilterPrecision.Q31:
-                case FilterPrecision.Q31_32x64:
-                case FilterPrecision.Q31_64x64:
-                case FilterPrecision.Q31Adaptive:
-                    this.FilterStream<Int32>(inputFile, outputFile, inputFile.TotalSamples);
-                    break;
-                default:
-                    throw new NotSupportedException(String.Format("Unsupported filter precision {0}.", this.Configuration.Engine.Precision));
-            }
-
-            // close streams
-            inputFile.Close();
-            outputFile.Close();
-
-            // if the requested output file type is other than .wav, transcode to the desired output file format
-            DateTime conversionStart = DateTime.UtcNow;
-            Dictionary<MetadataType, string> outputMetadata = inputMetadata;
-            if (outputMetadata == null)
-            {
-                outputMetadata = outputFile.GetMetadata();
-            }
-            if (this.Configuration.Output.Encoding != Encoding.Wav)
-            {
-                switch (this.Configuration.Output.Encoding)
+                List<MediaType> outputMediaTypes = MediaFoundationEncoder.GetOutputMediaTypes(Constant.EncodingGuids[this.Configuration.Output.Encoding]).Where(mediaType => mediaType.BitsPerSample == outputStream.WaveFormat.BitsPerSample && mediaType.ChannelCount == outputStream.WaveFormat.Channels && mediaType.SampleRate == outputStream.WaveFormat.SampleRate).ToList();
+                if ((outputMediaTypes == null) || (outputMediaTypes.Count < 1))
                 {
-                    case Encoding.Flac:
-                        FlacConverter flacConverter = new FlacConverter(this.Configuration.Output.Flac.FlacPath);
-                        flacConverter.OutputBitsPerSample = outputFile.SampleSizeInBits;
-                        flacConverter.CompressionLevel = this.Configuration.Output.Flac.CompressionLevel;
-                        flacConverter.ConvertWavToFlac(outputWavFilePath, outputFilePath, outputMetadata);
-                        break;
-                    default:
-                        throw new NotSupportedException(String.Format("Unhandled output encoding {0}.", this.Configuration.Output.Encoding));
-                }
-                // don't need the intermediate .wav files any more, so remove it to save disk space
-                // file system operations aren't entirely synchronous, so back off and retry and then fail if the retry also fails
-                if (inputFilePath != inputWavFilePath)
-                {
-                    try
-                    {
-                        File.Delete(inputWavFilePath);
-                    }
-                    catch (IOException)
-                    {
-                        Thread.Sleep(CrossTimeEngine.FileDeletionRetryInterval);
-                        File.Delete(inputWavFilePath);
-                    }
-                }
-                try
-                {
-                    File.Delete(outputWavFilePath);
-                }
-                catch (IOException)
-                {
-                    Thread.Sleep(CrossTimeEngine.FileDeletionRetryInterval);
-                    File.Delete(outputWavFilePath);
-                }
-            }
-
-            Console.WriteLine("Processed {0} in {1} (input {2}, filter {3}, output {4}).", Path.GetFileName(inputFilePath), (DateTime.UtcNow - processingStart).ToString(@"mm\:ss\.fff"), (filteringStart - processingStart).ToString(@"mm\:ss\.fff"), (processingStart - conversionStart).ToString(@"mm\:ss\.fff"), (DateTime.UtcNow - conversionStart).ToString(@"mm\:ss\.fff"));
-        }
-
-        public void FilterFiles(string inputDirectoryPath, string searchPattern, string outputPath)
-        {
-            // trace directory which was just entered
-            // this makes it easier to monitor progress when processing large numbers of artists and albums
-            Trace.TraceInformation("Processing '{0}'...", inputDirectoryPath);
-
-            // process files in this directory matching the search pattern
-            ParallelOptions parallelOptions = new ParallelOptions();
-            parallelOptions.MaxDegreeOfParallelism = Environment.ProcessorCount;
-            Parallel.ForEach(Directory.GetFiles(inputDirectoryPath, searchPattern), parallelOptions, (string inputFilePath) =>
-            {
-                // if the file was obviously created by Cross Time DSP processing another file, skip it
-                if (String.IsNullOrEmpty(this.Configuration.Output.CollidingFileNamePostfix) == false && Path.GetFileNameWithoutExtension(inputFilePath).EndsWith(this.Configuration.Output.CollidingFileNamePostfix))
-                {
+                    this.log.ReportError("'{0}': no media type found for {1} bits per sample, {2} channels, at {3} kHz.", Path.GetFileName(inputFilePath), outputStream.WaveFormat.BitsPerSample, outputStream.WaveFormat.Channels, outputStream.WaveFormat.SampleRate);
                     return;
                 }
-                // otherwise, process this input file
-                string outputFilePath;
-                if (String.Equals(inputDirectoryPath, outputPath, StringComparison.OrdinalIgnoreCase))
+                outputMediaType = outputMediaTypes[0];
+            }
+            MediaFoundationEncoder outputEncoder = new MediaFoundationEncoder(outputMediaType);
+            DateTime encodingStartedUtc = DateTime.UtcNow;
+            outputEncoder.Encode(outputFilePath, outputStream);
+            DateTime encodingStoppedUtc = DateTime.UtcNow;
+
+            // copy metadata
+            Tag inputMetadata;
+            using (FileStream inputMetadataStream = new FileStream(inputFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                using (TagFile inputTagFile = TagFile.Create(new StreamFileAbstraction(inputMetadataStream.Name, inputMetadataStream, inputMetadataStream)))
                 {
-                    outputFilePath = this.GetOutputFilePathInSameDirectory(inputFilePath, this.Configuration.Output.Encoding);
+                    inputMetadata = inputTagFile.Tag;
+                }
+            }
+
+            using (FileStream outputMetadataStream = new FileStream(outputFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
+            {
+                using (TagFile outputTagFile = TagFile.Create(new StreamFileAbstraction(outputMetadataStream.Name, outputMetadataStream, outputMetadataStream)))
+                {
+                    if (this.TryApplyMetadata(inputMetadata, outputTagFile.Tag))
+                    {
+                        outputTagFile.Save();
+                    }
+                }
+            }
+
+            DateTime processingStoppedUtc = DateTime.UtcNow;
+            TimeSpan encodingTime = encodingStoppedUtc - encodingStartedUtc;
+            TimeSpan processingTime = processingStoppedUtc - processingStartedUtc;
+            if (streamMetrics.HasReverseTime)
+            {
+                TimeSpan reverseBufferTime = streamMetrics.ReverseBufferCompleteUtc - streamMetrics.StartTimeUtc;
+                TimeSpan reverseProcessingTime = streamMetrics.ReverseTimeCompleteUtc - streamMetrics.ReverseBufferCompleteUtc;
+                if (streamMetrics.HasForwardTime)
+                {
+                    TimeSpan forwardProcessingTime = streamMetrics.CompleteTimeUtc - streamMetrics.ReverseTimeCompleteUtc;
+                    this.log.ReportVerbose("'{0}' to '{1}' in {2} (buffer {3}, reverse {4}, forward {5}, encode {6}).", Path.GetFileName(inputFilePath), Path.GetFileName(outputFilePath), processingTime.ToString(Constant.ElapsedTimeFormat), reverseBufferTime.ToString(Constant.ElapsedTimeFormat), reverseProcessingTime.ToString(Constant.ElapsedTimeFormat), forwardProcessingTime.ToString(Constant.ElapsedTimeFormat), encodingTime.ToString(Constant.ElapsedTimeFormat));
                 }
                 else
                 {
-                    outputFilePath = this.GetOutputFilePathInDifferentDirectory(inputFilePath, outputPath, this.Configuration.Output.Encoding);
+                    this.log.ReportVerbose("'{0}' to '{1}' in {2} (buffer {3}, reverse {4}, encode {5}).", Path.GetFileName(inputFilePath), Path.GetFileName(outputFilePath), processingTime.ToString(Constant.ElapsedTimeFormat), reverseBufferTime.ToString(Constant.ElapsedTimeFormat), reverseProcessingTime.ToString(Constant.ElapsedTimeFormat), encodingTime.ToString(Constant.ElapsedTimeFormat));
                 }
+            }
+            else
+            {
+                TimeSpan filteringTime = streamMetrics.CompleteTimeUtc - streamMetrics.StartTimeUtc;
+                this.log.ReportVerbose("'{0}' to '{1}' in {2} (load+filter {3}, encode {4}).", Path.GetFileName(inputFilePath), Path.GetFileName(outputFilePath), processingTime.ToString(Constant.ElapsedTimeFormat), filteringTime.ToString(Constant.ElapsedTimeFormat), encodingTime.ToString(Constant.ElapsedTimeFormat));
+            }
+        }
+
+        public void FilterFiles(string inputDirectoryPath, string fileNameOrSearchPattern, string outputPath)
+        {
+            // trace directory which was just entered
+            // this makes it easier to monitor progress when processing large numbers of artists and albums
+            this.log.ReportVerbose("Processing '{0}'...", inputDirectoryPath);
+
+            // process files in this directory matching the search pattern
+            // Measurements show automatic parallelism is typically fastest; per track processing times are 20-70% higher than explicit specification but total
+            // time is around 10% less.  It appears this is due to Windows Media Foundation performing encoding in parallel and automatic allocation being better 
+            // at reducing contention between the encoder and Cross Time DSP worker threads, though there may be some contribution from NAudio's lack of async
+            // support.  Another source of variability is the number of cores against the number and size of tracks to process; changing specification produces
+            // different scheduling alignments, affecting when the last track completes relative to others.
+            Parallel.ForEach(Directory.GetFiles(inputDirectoryPath, fileNameOrSearchPattern), (string inputFilePath, ParallelLoopState loopState) =>
+            {
+                if (this.Stopping)
+                {
+                    loopState.Stop();
+                    return;
+                }
+
+                // process this input file
+                string outputFilePath = this.GetOutputFilePath(inputFilePath, outputPath, this.Configuration.Output.Encoding);
                 this.FilterFile(inputFilePath, outputFilePath);
             });
 
@@ -203,129 +196,275 @@ namespace CrossTimeDsp
             foreach (string inputSubdirectoryPath in Directory.GetDirectories(inputDirectoryPath))
             {
                 string inputSubdirectoryName = Path.GetFileName(inputSubdirectoryPath);
-                this.FilterFiles(inputSubdirectoryPath, searchPattern, Path.Combine(outputPath, inputSubdirectoryName));
+                this.FilterFiles(inputSubdirectoryPath, fileNameOrSearchPattern, Path.Combine(outputPath, inputSubdirectoryName));
             }
         }
 
-        private void FilterStream<TSample>(SampledStream inputStream, SampledStream outputStream, Int64 totalSamples) where TSample : struct
+        private WaveStream FilterStream(WaveStream inputStream, out StreamPerformance performance)
         {
+            performance = new StreamPerformance();
+
             // populate filters
-            FilterBank<TSample> forwardTimeFilters = new FilterBank<TSample>(inputStream.Channels);
-            FilterBank<TSample> reverseTimeFilters = new FilterBank<TSample>(inputStream.Channels);
+            FilterBank forwardTimeFilters = new FilterBank();
+            FilterBank reverseTimeFilters = new FilterBank();
 
             double antiClippingGain = Math.Pow(10.0, this.Configuration.Engine.ReverseTimeAntiClippingAttenuationInDB / 20.0);
-            reverseTimeFilters.Add(Gain.Create<TSample>(antiClippingGain, this.Configuration.Engine.Precision));
+            bool doubleDataPath = this.Configuration.Engine.Precision == FilterPrecision.Double;
+            if (doubleDataPath)
+            {
+                reverseTimeFilters.Add(Gain.Create<double>(antiClippingGain, this.Configuration.Engine.Precision));
+            }
+            else
+            {
+                reverseTimeFilters.Add(Gain.Create<int>(antiClippingGain, this.Configuration.Engine.Precision));
+            }
 
             foreach (FilterElement filter in this.Configuration.Filters.Filters)
             {
+                FilterBank filters;
                 switch (filter.TimeDirection)
                 {
                     case TimeDirection.Forward:
-                        forwardTimeFilters.Add(filter.Create<TSample>(inputStream.SamplesPerSecond, this.Configuration.Engine));
+                        filters = forwardTimeFilters;
                         break;
                     case TimeDirection.Reverse:
-                        reverseTimeFilters.Add(filter.Create<TSample>(inputStream.SamplesPerSecond, this.Configuration.Engine));
+                        filters = reverseTimeFilters;
                         break;
                     default:
                         throw new NotSupportedException(String.Format("Unhandled time direction {0}.", filter.TimeDirection));
                 }
-            }
 
-            // do filtering
-            IEnumerable<TSample> samples;
-            if (typeof(TSample) == typeof(double))
-            {
-                samples = (IEnumerable<TSample>)new SampledStreamConverter<double>(inputStream);
-            }
-            else if (typeof(TSample) == typeof(Int32))
-            {
-                samples = (IEnumerable<TSample>)inputStream;
-            }
-            else
-            {
-                throw new NotSupportedException(String.Format("Unhandled sample type {0}.", typeof(TSample).FullName));
+                if (doubleDataPath)
+                {
+                    filters.Add(filter.Create<double>(inputStream.WaveFormat.SampleRate, this.Configuration.Engine, inputStream.WaveFormat.Channels));
+                }
+                else
+                {
+                    filters.Add(filter.Create<int>(inputStream.WaveFormat.SampleRate, this.Configuration.Engine, inputStream.WaveFormat.Channels));
+                }
             }
 
             // do reverse time pass
-            // if the only reverse time filter is the anti-clipping gain then there's nothing to do
-            if (reverseTimeFilters.FilterCount > inputStream.Channels)
+            // If the only reverse time filter is the anti-clipping gain then there's nothing to do.
+            SampleType dataPathSampleType = doubleDataPath ? SampleType.Double : SampleType.Int32;
+            bool hasForwardTimeFilters = forwardTimeFilters.FilterCount > 0;
+            SampleType outputSampleType = SampleTypeExtensions.FromBitsPerSample(this.Configuration.Output.BitsPerSample);
+            if (reverseTimeFilters.FilterCount > 1)
             {
-                ReversedTimeBuffer<TSample> sampleBuffer = new ReversedTimeBuffer<TSample>(samples, totalSamples);
-                for (Int64 index = sampleBuffer.TotalSamples - 1; index >= 0; --index)
+                SampleBuffer inputBuffer = new SampleBuffer(inputStream);
+                performance.ReverseBufferCompleteUtc = DateTime.UtcNow;
+
+                SampleType reverseTimeSampleType = hasForwardTimeFilters ? dataPathSampleType : outputSampleType;
+                SampleBuffer reverseTimeBuffer = new SampleBuffer(inputStream.WaveFormat.SampleRate, reverseTimeSampleType.BitsPerSample(), inputStream.WaveFormat.Channels);
+                // blocks are removed from the input buffer as they're processed to limit memory consumption
+                for (LinkedListNode<SampleBlock> blockNode = inputBuffer.Blocks.Last; blockNode != null; blockNode = blockNode.Previous, inputBuffer.Blocks.RemoveLast())
                 {
-                    sampleBuffer[index] = reverseTimeFilters.Filter(sampleBuffer[index]);
+                    SampleBlock block = blockNode.Value;
+                    SampleBlock filteredBlock = reverseTimeFilters.FilterReverse(block, dataPathSampleType, reverseTimeSampleType);
+                    reverseTimeBuffer.Blocks.AddFirst(filteredBlock);
+
+                    if (this.Stopping)
+                    {
+                        return null;
+                    }
                 }
-                // point forward time pass at output of reverse time pass
-                samples = sampleBuffer;
+
+                // apply forward time pass to output of reverse time pass
+                reverseTimeBuffer.RecalculateBlocks();
+                inputStream = reverseTimeBuffer;
+                performance.ReverseTimeCompleteUtc = DateTime.UtcNow;
             }
 
             // do forward time pass
-            if (forwardTimeFilters.FilterCount > 0)
+            if (hasForwardTimeFilters)
             {
-                samples = forwardTimeFilters.Filter(samples);
+                SampleBuffer outputStream = new SampleBuffer(inputStream.WaveFormat.SampleRate, outputSampleType.BitsPerSample(), inputStream.WaveFormat.Channels);
+                if (inputStream is SampleBuffer)
+                {
+                    SampleBuffer inputBlocks = (SampleBuffer)inputStream;
+                    for (LinkedListNode<SampleBlock> blockNode = inputBlocks.Blocks.First; blockNode != null; blockNode = blockNode.Next)
+                    {
+                        SampleBlock filteredBlock = forwardTimeFilters.Filter(blockNode.Value, dataPathSampleType, outputSampleType);
+                        outputStream.Blocks.AddLast(filteredBlock);
+                        inputBlocks.Blocks.RemoveFirst();
+
+                        if (this.Stopping)
+                        {
+                            return null;
+                        }
+                    }
+                }
+                else
+                {
+                    SampleBlock block = new SampleBlock(Constant.SampleBlockSizeInBytes, SampleTypeExtensions.FromBitsPerSample(inputStream.WaveFormat.BitsPerSample));
+                    while (inputStream.CanRead)
+                    {
+                        block.BytesInUse = inputStream.Read(block.ByteBuffer, 0, block.MaximumSizeInBytes);
+                        if (block.BytesInUse < 1)
+                        {
+                            // workaround for NAudio bug: WaveStream.CanRead is hard coded to true regardless of position
+                            break;
+                        }
+
+                        SampleBlock filteredBlock = forwardTimeFilters.Filter(block, dataPathSampleType, outputSampleType);
+                        outputStream.Blocks.AddLast(filteredBlock);
+
+                        if (this.Stopping)
+                        {
+                            return null;
+                        }
+                    }
+                }
+
+                outputStream.RecalculateBlocks();
+                inputStream = outputStream;
             }
 
-            // write results to output
-            ISampleConverter<TSample> sampleConverter;
-            if (typeof(TSample) == typeof(double))
-            {
-                sampleConverter = (ISampleConverter<TSample>)new DoubleSampleConverter();
-            }
-            else if (typeof(TSample) == typeof(Int32))
-            {
-                sampleConverter = (ISampleConverter<TSample>)new Int32SampleConverter();
-            }
-            else
-            {
-                throw new NotSupportedException(String.Format("Unhandled sample type {0}.", typeof(TSample).FullName));
-            }
-            foreach (TSample sample in samples)
-            {
-                Int32 sampleAsQ31 = sampleConverter.SampleToQ31(sample);
-                outputStream.WriteSample(sampleAsQ31);
-            }
-
-            // force, er, strongly encourage garbage collection of reverse time buffer
-            // if this isn't done it's likely processing large tracks consecutively will fail as sampleBuffer is a long lived object and
-            // likely gets promoted an older generation, meaning FilterFile() can get invoked again before sampleBuffer gets collected
-            samples = null;
-            GC.Collect();
+            performance.CompleteTimeUtc = DateTime.UtcNow;
+            return inputStream;
         }
 
-        private string GetOutputFilePathInDifferentDirectory(string inputFilePath, string outputDirectoryPath, Encoding outputEncoding)
+        private string GetOutputFilePath(string inputFilePath, string outputDestination, Encoding outputEncoding)
         {
             string outputExtension;
             switch (outputEncoding)
             {
                 case Encoding.Flac:
-                    outputExtension = FlacConstants.FileExtension;
+                    outputExtension = Constant.Extension.Flac;
                     break;
-                case Encoding.Wav:
-                    outputExtension = WavConstants.FileExtension;
+                case Encoding.Mp3:
+                    outputExtension = Constant.Extension.Mp3;
+                    break;
+                case Encoding.Wave:
+                    outputExtension = Constant.Extension.Wave;
                     break;
                 default:
                     throw new NotSupportedException(String.Format("Unhandled output file type {0}.", this.Configuration.Output.Encoding));
             }
-            return String.Format("{0}{1}{2}{3}", outputDirectoryPath, Path.DirectorySeparatorChar, Path.GetFileNameWithoutExtension(inputFilePath), outputExtension);
-        }
 
-        private string GetOutputFilePathInSameDirectory(string inputFilePath, Encoding outputEncoding)
-        {
-            // get the default output file name
-            string directoryPath = Path.GetDirectoryName(inputFilePath);
-            string outputFilePath = this.GetOutputFilePathInDifferentDirectory(inputFilePath, directoryPath, outputEncoding);
+            string inputDirectoryPath = Path.GetDirectoryName(inputFilePath);
+            string outputDirectoryPath = Path.GetDirectoryName(outputDestination);
+            string outputFileName;
+            if (Directory.Exists(outputDestination))
+            {
+                // if outputDestination indicates an existing directory then take it to be the output directory path
+                outputDirectoryPath = outputDestination;
+                outputFileName = Path.GetFileNameWithoutExtension(inputFilePath) + outputExtension;
+            }
+            else if (String.IsNullOrEmpty(outputDirectoryPath))
+            {
+                // if outputDestination is just a file name then create the file in the input directory
+                outputDirectoryPath = inputDirectoryPath;
+                outputFileName = outputDestination;
+            }
+            else
+            {
+                // assume output destination is a path to a file
+                // (If needed, presence of an extension could be used as a hint to determine whether it's a directory needing creation.)
+                // leave outputDirectoryPath as is
+                outputFileName = Path.GetFileName(outputDestination);
+            }
+
+            string outputFilePath = Path.Combine(outputDirectoryPath, outputFileName);
 
             // if the output file already exists and is of the same type as the input file, append the colliding file name postfix
-            if (File.Exists(outputFilePath))
+            if (String.Equals(inputFilePath, outputFilePath, StringComparison.OrdinalIgnoreCase))
             {
-                string inputExtension = Path.GetExtension(inputFilePath);
-                string outputExtension = Path.GetExtension(outputFilePath);
-                if (String.Equals(inputExtension, outputExtension, StringComparison.OrdinalIgnoreCase))
-                {
-                    outputFilePath = String.Format("{0}{1}{2}{3}{4}", directoryPath, Path.DirectorySeparatorChar, Path.GetFileNameWithoutExtension(inputFilePath), this.Configuration.Output.CollidingFileNamePostfix, outputExtension);
-                }
+                outputFilePath = Path.Combine(Path.GetDirectoryName(outputFilePath), Path.GetFileNameWithoutExtension(outputFilePath) + this.Configuration.Output.CollidingFileNamePostfix + Path.GetExtension(outputFilePath));
             }
+
             return outputFilePath;
+        }
+
+        private bool TryApplyMetadata(Tag inputMetadata, Tag outputMetadata)
+        {
+            bool metadataApplied = false;
+            if (String.IsNullOrWhiteSpace(inputMetadata.Album) == false)
+            {
+                outputMetadata.Album = inputMetadata.Album;
+                metadataApplied = true;
+            }
+            if (inputMetadata.AlbumArtists != null)
+            {
+                outputMetadata.AlbumArtists = inputMetadata.AlbumArtists;
+                metadataApplied = true;
+            }
+            if (inputMetadata.AmazonId != null)
+            {
+                outputMetadata.AmazonId = inputMetadata.AmazonId;
+                metadataApplied = true;
+            }
+            if (inputMetadata.Composers != null)
+            {
+                outputMetadata.Composers = inputMetadata.Composers;
+                metadataApplied = true;
+            }
+            if (String.IsNullOrWhiteSpace(inputMetadata.Conductor) == false)
+            {
+                outputMetadata.Conductor = inputMetadata.Conductor;
+                metadataApplied = true;
+            }
+            if (String.IsNullOrWhiteSpace(inputMetadata.Copyright) == false)
+            {
+                outputMetadata.Copyright = inputMetadata.Copyright;
+                metadataApplied = true;
+            }
+            if (inputMetadata.Disc > 0)
+            {
+                outputMetadata.Disc = inputMetadata.Disc;
+                metadataApplied = true;
+            }
+            if (inputMetadata.DiscCount > 0)
+            {
+                outputMetadata.DiscCount = inputMetadata.DiscCount;
+                metadataApplied = true;
+            }
+            if (inputMetadata.Genres != null)
+            {
+                outputMetadata.Genres = inputMetadata.Genres;
+                metadataApplied = true;
+            }
+            if (String.IsNullOrWhiteSpace(inputMetadata.Grouping) == false)
+            {
+                outputMetadata.Grouping = inputMetadata.Grouping;
+                metadataApplied = true;
+            }
+            if (String.IsNullOrWhiteSpace(inputMetadata.Lyrics) == false)
+            {
+                outputMetadata.Lyrics = inputMetadata.Lyrics;
+                metadataApplied = true;
+            }
+            if (inputMetadata.Performers != null)
+            {
+                outputMetadata.Performers = inputMetadata.Performers;
+                metadataApplied = true;
+            }
+            if (inputMetadata.Pictures != null)
+            {
+                outputMetadata.Pictures = inputMetadata.Pictures;
+                metadataApplied = true;
+            }
+            if (String.IsNullOrWhiteSpace(inputMetadata.Title) == false)
+            {
+                outputMetadata.Title = inputMetadata.Title;
+                metadataApplied = true;
+            }
+            if (inputMetadata.Track > 0)
+            {
+                outputMetadata.Track = inputMetadata.Track;
+                metadataApplied = true;
+            }
+            if (inputMetadata.TrackCount > 0)
+            {
+                outputMetadata.TrackCount = inputMetadata.TrackCount;
+                metadataApplied = true;
+            }
+            if (inputMetadata.Year > 0)
+            {
+                outputMetadata.Year = inputMetadata.Year;
+                metadataApplied = true;
+            }
+            return metadataApplied;
         }
     }
 }

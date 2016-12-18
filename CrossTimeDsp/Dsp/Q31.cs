@@ -5,7 +5,7 @@ namespace CrossTimeDsp.Dsp
     internal class Q31
     {
         public int FractionalBits { get; private set; }
-        private Int32 value;
+        private int value;
 
         public static readonly int MaximumFractionalBits = 31;
 
@@ -17,7 +17,7 @@ namespace CrossTimeDsp.Dsp
         public Q31(double value, int fractionalBits)
         {
             this.FractionalBits = fractionalBits;
-            this.value = (Int32)(Math.Pow(2.0, (double)fractionalBits) * value);
+            this.value = (int)(Math.Pow(2.0, (double)fractionalBits) * value);
         }
 
         public static int GetOptimalNumberOfFractionalBits(double value)
@@ -50,19 +50,19 @@ namespace CrossTimeDsp.Dsp
         /// <summary>
         /// Performs a 32x32 bit multiply with 64 bit accumulation.  Post shifting is the caller's responsibility.
         /// </summary>
-        public static Int64 operator *(Q31 x, Int32 y)
+        public static long operator *(Q31 x, int y)
         {
-            return (Int64)x.value * (Int64)y;
+            return (long)x.value * (long)y;
         }
 
         /// <summary>
         /// Performs a 32x64 bit multiply with 64 bit accumulation, ignoring the lowest 32 bits of the multiply.  Post shifting is the 
         /// caller's responsibility.
         /// </summary>
-        public static Int64 operator *(Q31 x, Int64 y)
+        public static long operator *(Q31 x, long y)
         {
             ////   all 64 bits of the upper multiply + the upper 32 bits of the lower multiply = Q95 intermediate result truncated to Q63
-            return (Int64)x.value * (Int64)(y >> 32) + (((Int64)x.value * (y & 0x00000000FFFFFFFF)) >> 32);
+            return (long)x.value * (long)(y >> 32) + (((long)x.value * (y & 0x00000000FFFFFFFF)) >> 32);
         }
     }
 }

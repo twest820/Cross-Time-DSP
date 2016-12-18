@@ -1,11 +1,13 @@
-﻿using System;
-
-namespace CrossTimeDsp.Configuration
+﻿namespace CrossTimeDsp.Configuration
 {
     public enum Encoding
     {
+        AppleLossless,
+        AdvancedAudio,
         Flac,
-        MP3,
-        Wav
+        Mp3,
+        Wave,
+        WindowsMediaAudio9,
+        WindowsMediaAudioLossless
     }
 }

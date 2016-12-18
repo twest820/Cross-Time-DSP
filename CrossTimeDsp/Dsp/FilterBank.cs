@@ -1,49 +1,99 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace CrossTimeDsp.Dsp
 {
-    internal class FilterBank<TSample> where TSample : struct
+    internal class FilterBank
     {
-        private int channels;
-        private int currentSample;
-        private List<IFilter<TSample>> filters;
+        private List<IFilter<double>> doubleFilters;
+        private List<IFilter<int>> intFilters;
 
-        public FilterBank(int channels)
+        public FilterBank()
         {
-            this.channels = channels;
-            this.currentSample = 0;
-            this.filters = new List<IFilter<TSample>>();
+            this.doubleFilters = new List<IFilter<double>>();
+            this.intFilters = new List<IFilter<int>>();
         }
 
         public int FilterCount
         {
-            get { return this.filters.Count; }
+            get { return this.doubleFilters.Count + this.intFilters.Count; }
         }
 
-        public void Add(IFilter<TSample> filter)
+        public void Add(IFilter<double> filter)
         {
-            for (int channel = 0; channel < this.channels; ++channel)
+            this.doubleFilters.Add(filter);
+        }
+
+        public void Add(IFilter<int> filter)
+        {
+            this.intFilters.Add(filter);
+        }
+
+        public SampleBlock Filter(SampleBlock block, SampleType dataPathSampleType, SampleType outputSampleType)
+        {
+            block = block.ConvertTo(dataPathSampleType);
+            switch (dataPathSampleType)
             {
-                this.filters.Add(filter.Clone());
+                case SampleType.Double:
+                    this.Filter<double>(this.doubleFilters, block.DoubleBuffer, block.DoubleBufferCount, Constant.FilterBlockSizeInDoubles);
+                    break;
+                case SampleType.Int32:
+                    this.Filter<int>(this.intFilters, block.IntBuffer, block.IntBufferCount, Constant.FilterBlockSizeInInts);
+                    break;
+                default:
+                    throw new NotSupportedException(String.Format("Unhandled data path sample type {0}."));
+            }
+
+            return block.ConvertTo(outputSampleType);
+        }
+
+        private void Filter<TSample>(List<IFilter<TSample>> filters, TSample[] block, int blockLength, int filterBlockSizeInSamples) where TSample : struct
+        {
+            for (int index = 0; index < blockLength; index += filterBlockSizeInSamples)
+            {
+                for (int filter = 0; filter < filters.Count; ++filter)
+                {
+                    filters[filter].Filter(block, index);
+                }
             }
         }
 
-        public TSample Filter(TSample sample)
+        public SampleBlock FilterReverse(SampleBlock block, SampleType dataPathSampleType, SampleType outputSampleType)
         {
-            TSample result = sample;
-            for (int index = this.currentSample % this.channels; index < this.filters.Count; index += this.channels)
+            block = block.ConvertTo(dataPathSampleType);
+            switch (dataPathSampleType)
             {
-                result = this.filters[index].Filter(result);
+                case SampleType.Double:
+                    int count = block.DoubleBufferCount;
+                    if (count % Constant.FilterBlockSizeInDoubles != 0)
+                    {
+                        count = (count / Constant.FilterBlockSizeInDoubles + 1) * Constant.FilterBlockSizeInDoubles;
+                    }
+                    this.FilterReverse<double>(this.doubleFilters, block.DoubleBuffer, count, Constant.FilterBlockSizeInDoubles);
+                    break;
+                case SampleType.Int32:
+                    count = block.IntBufferCount;
+                    if (count % Constant.FilterBlockSizeInInts != 0)
+                    {
+                        count = (count / Constant.FilterBlockSizeInInts + 1) * Constant.FilterBlockSizeInInts;
+                    }
+                    this.FilterReverse<int>(this.intFilters, block.IntBuffer, count, Constant.FilterBlockSizeInInts);
+                    break;
+                default:
+                    throw new NotSupportedException(String.Format("Unhandled data path sample type {0}."));
             }
-            ++this.currentSample;
-            return result;
+
+            return block.ConvertTo(outputSampleType);
         }
 
-        public IEnumerable<TSample> Filter(IEnumerable<TSample> samples)
+        private void FilterReverse<TSample>(List<IFilter<TSample>> filters, TSample[] block, int count, int filterBlockSizeInSamples) where TSample : struct
         {
-            foreach (TSample sample in samples)
+            for (int index = count - filterBlockSizeInSamples; index >= 0; index -= filterBlockSizeInSamples)
             {
-                yield return this.Filter(sample);
+                for (int filter = 0; filter < filters.Count; ++filter)
+                {
+                    filters[filter].FilterReverse(block, index);
+                }
             }
         }
     }
