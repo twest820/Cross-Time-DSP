@@ -3,9 +3,13 @@
 *.user
 
 # Build results 
+*.opendb
+*.sdf
 bin/
+ipch/
 packages/
 obj/
+x64/
 **/StyleCop.Cache
 
 # Profiling results

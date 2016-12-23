@@ -205,19 +205,10 @@ namespace CrossTimeDsp
             performance = new StreamPerformance();
 
             // populate filters
-            FilterBank forwardTimeFilters = new FilterBank();
-            FilterBank reverseTimeFilters = new FilterBank();
+            FilterBank forwardTimeFilters = new FilterBank(this.Configuration.Engine.Precision, this.Configuration.Engine.Q31Adaptive.Q31_32x64_Threshold, this.Configuration.Engine.Q31Adaptive.Q31_64x64_Threshold);
+            FilterBank reverseTimeFilters = new FilterBank(this.Configuration.Engine.Precision, this.Configuration.Engine.Q31Adaptive.Q31_32x64_Threshold, this.Configuration.Engine.Q31Adaptive.Q31_64x64_Threshold);
 
-            double antiClippingGain = Math.Pow(10.0, this.Configuration.Engine.ReverseTimeAntiClippingAttenuationInDB / 20.0);
-            bool doubleDataPath = this.Configuration.Engine.Precision == FilterPrecision.Double;
-            if (doubleDataPath)
-            {
-                reverseTimeFilters.Add(Gain.Create<double>(antiClippingGain, this.Configuration.Engine.Precision));
-            }
-            else
-            {
-                reverseTimeFilters.Add(Gain.Create<int>(antiClippingGain, this.Configuration.Engine.Precision));
-            }
+            reverseTimeFilters.AddGain(this.Configuration.Engine.ReverseTimeAntiClippingAttenuationInDB);
 
             foreach (FilterElement filter in this.Configuration.Filters.Filters)
             {
@@ -234,19 +225,20 @@ namespace CrossTimeDsp
                         throw new NotSupportedException(String.Format("Unhandled time direction {0}.", filter.TimeDirection));
                 }
 
-                if (doubleDataPath)
+                if (filter is BiquadElement)
                 {
-                    filters.Add(filter.Create<double>(inputStream.WaveFormat.SampleRate, this.Configuration.Engine, inputStream.WaveFormat.Channels));
+                    BiquadElement biquad = (BiquadElement)filter;
+                    filters.AddBiquad(biquad.Type, inputStream.WaveFormat.SampleRate, biquad.F0, biquad.GainInDB, biquad.Q, inputStream.WaveFormat.Channels);
                 }
                 else
                 {
-                    filters.Add(filter.Create<int>(inputStream.WaveFormat.SampleRate, this.Configuration.Engine, inputStream.WaveFormat.Channels));
+                    filters.AddFirstOrderFilter(filter.Type, inputStream.WaveFormat.SampleRate, filter.F0, inputStream.WaveFormat.Channels);
                 }
             }
 
             // do reverse time pass
             // If the only reverse time filter is the anti-clipping gain then there's nothing to do.
-            SampleType dataPathSampleType = doubleDataPath ? SampleType.Double : SampleType.Int32;
+            SampleType dataPathSampleType = this.Configuration.Engine.Precision == FilterPrecision.Double ? SampleType.Double : SampleType.Int32;
             bool hasForwardTimeFilters = forwardTimeFilters.FilterCount > 0;
             SampleType outputSampleType = SampleTypeExtensions.FromBitsPerSample(this.Configuration.Output.BitsPerSample);
             if (reverseTimeFilters.FilterCount > 1)

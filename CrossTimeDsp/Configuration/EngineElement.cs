@@ -1,4 +1,5 @@
-﻿using System.Xml.Serialization;
+﻿using CrossTimeDsp.Dsp;
+using System.Xml.Serialization;
 
 namespace CrossTimeDsp.Configuration
 {

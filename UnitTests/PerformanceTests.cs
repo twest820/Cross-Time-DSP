@@ -72,16 +72,18 @@ namespace CrossTimeDsp.UnitTests
             {
                 configuration.Engine.Precision = FilterPrecision.Q31Adaptive;
             }
-            FilterBank filters = new FilterBank();
+
+            FilterBank filters = new FilterBank(configuration.Engine.Precision, configuration.Engine.Q31Adaptive.Q31_32x64_Threshold, configuration.Engine.Q31Adaptive.Q31_64x64_Threshold);
             foreach (FilterElement filter in configuration.Filters.Filters)
             {
-                if (doubleDataPath)
+                if (filter is BiquadElement)
                 {
-                    filters.Add(filter.Create<double>(inputBuffer.WaveFormat.SampleRate, configuration.Engine, inputBuffer.WaveFormat.Channels));
+                    BiquadElement biquad = (BiquadElement)filter;
+                    filters.AddBiquad(biquad.Type, inputBuffer.WaveFormat.SampleRate, biquad.F0, biquad.GainInDB, biquad.Q, inputBuffer.WaveFormat.Channels);
                 }
                 else
                 {
-                    filters.Add(filter.Create<int>(inputBuffer.WaveFormat.SampleRate, configuration.Engine, inputBuffer.WaveFormat.Channels));
+                    filters.AddFirstOrderFilter(filter.Type, inputBuffer.WaveFormat.SampleRate, filter.F0, inputBuffer.WaveFormat.Channels);
                 }
             }
 

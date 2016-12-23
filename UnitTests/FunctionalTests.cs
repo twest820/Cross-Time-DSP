@@ -215,7 +215,7 @@ namespace CrossTimeDsp.UnitTests
             }
         }
 
-        private void VerifyWaveFilesEquivalent(string actualFilePath, string expectedFilePath, double expectedToActualScaleFactor, double sampleMatchTolerance, bool verifySampleSize)
+        private unsafe void VerifyWaveFilesEquivalent(string actualFilePath, string expectedFilePath, double expectedToActualScaleFactor, double sampleMatchTolerance, bool verifySampleSize)
         {
             // load data in files
             SampleBlock actual;

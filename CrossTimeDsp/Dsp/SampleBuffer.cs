@@ -5,6 +5,7 @@ using System.IO;
 using System.Runtime.Remoting;
 using System.Threading;
 using System.Threading.Tasks;
+using CrossTimeConstant = CrossTimeDsp.Constant;
 
 namespace CrossTimeDsp.Dsp
 {
@@ -40,7 +41,7 @@ namespace CrossTimeDsp.Dsp
             SampleType sampleType = SampleTypeExtensions.FromBitsPerSample(stream.WaveFormat.BitsPerSample);
             while (stream.CanRead)
             {
-                SampleBlock block = new SampleBlock(Constant.SampleBlockSizeInBytes, sampleType);
+                SampleBlock block = new SampleBlock(CrossTimeConstant.SampleBlockSizeInBytes, sampleType);
                 block.BytesInUse = stream.Read(block.ByteBuffer, 0, block.MaximumSizeInBytes);
                 if (block.BytesInUse < 1)
                 {
