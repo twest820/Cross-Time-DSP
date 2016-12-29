@@ -9,9 +9,11 @@ using CrossTimeConstant = CrossTimeDsp.Constant;
 
 namespace CrossTimeDsp.Dsp
 {
+    // Close() is not overridden per MSDN documentation for Stream.Dispose().
     internal class SampleBuffer : WaveStream
     {
         private LinkedListNode<SampleBlock> currentBlockNode;
+        private bool disposed;
         private long length;
         private long position;
         private int positionInBlock;
@@ -28,6 +30,7 @@ namespace CrossTimeDsp.Dsp
         public SampleBuffer(int sampleRate, int bitsPerSample, int channels)
         {
             this.currentBlockNode = null;
+            this.disposed = false;
             this.length = 0;
             this.position = 0;
             this.waveFormat = new WaveFormat(sampleRate, bitsPerSample, channels);
@@ -38,17 +41,18 @@ namespace CrossTimeDsp.Dsp
         public SampleBuffer(WaveStream stream)
             : this(stream.WaveFormat.SampleRate, stream.WaveFormat.BitsPerSample, stream.WaveFormat.Channels)
         {
+            byte[] buffer = new byte[CrossTimeConstant.SampleBlockSizeInBytes];
             SampleType sampleType = SampleTypeExtensions.FromBitsPerSample(stream.WaveFormat.BitsPerSample);
             while (stream.CanRead)
             {
-                SampleBlock block = new SampleBlock(CrossTimeConstant.SampleBlockSizeInBytes, sampleType);
-                block.BytesInUse = stream.Read(block.ByteBuffer, 0, block.MaximumSizeInBytes);
-                if (block.BytesInUse < 1)
+                int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                if (bytesRead < 1)
                 {
                     // workaround for NAudio bug: WaveStream.CanRead is hard coded to true regardless of position
                     break;
                 }
 
+                SampleBlock block = new SampleBlock(buffer, bytesRead, sampleType);
                 this.Blocks.AddLast(block);
                 this.length += block.BytesInUse;
             }
@@ -106,11 +110,6 @@ namespace CrossTimeDsp.Dsp
             throw new NotImplementedException();
         }
 
-        public override void Close()
-        {
-            throw new NotImplementedException();
-        }
-
         public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
@@ -119,6 +118,25 @@ namespace CrossTimeDsp.Dsp
         public override ObjRef CreateObjRef(Type requestedType)
         {
             throw new NotImplementedException();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (this.disposed)
+            {
+                return;
+            }
+
+            if (disposing)
+            {
+                foreach (SampleBlock block in this.Blocks)
+                {
+                    block.Dispose();
+                }
+            }
+
+            base.Dispose(disposing);
+            this.disposed = true;
         }
 
         public override int EndRead(IAsyncResult asyncResult)
@@ -151,7 +169,7 @@ namespace CrossTimeDsp.Dsp
             SampleBlock block = this.currentBlockNode.Value;
             int bytesAvailableInCurrentBlock = block.BytesInUse - this.positionInBlock;
             int bytesCopied = Math.Min(bytesAvailableInCurrentBlock, count);
-            Array.Copy(block.ByteBuffer, this.positionInBlock, buffer, offset, bytesCopied);
+            block.CopyTo(this.positionInBlock, buffer, offset, bytesCopied);
             this.positionInBlock += bytesCopied;
             this.position += bytesCopied;
 

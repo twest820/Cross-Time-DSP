@@ -1,18 +1,42 @@
 #include "stdafx.h"
+#include <assert.h>
+#include <iostream>
+#include <limits>
+#include <new>
 #include "Constant.h"
 #include "SampleBlock.h"
+#include "SampleConverter.h"
 
 namespace CrossTimeDsp::Dsp
 {
+	SampleBlock::SampleBlock(array<Byte>^ buffer, __int32 bytesInUse, Dsp::SampleType sampleType)
+		: SampleBlock(buffer->Length, sampleType)
+	{
+		pin_ptr<unsigned __int8> sourcePointer = &buffer[0];
+		std::memcpy(this->block, sourcePointer, buffer->Length);
+		this->bytesInUse = bytesInUse;
+	}
+
 	SampleBlock::SampleBlock(__int32 requestedSizeInBytes, Dsp::SampleType sampleType)
 	{
 		// round size up to filter granularity
 		__int32 filterBlocks = requestedSizeInBytes / Constant::FilterBlockSizeInBytes + 1;
 		__int32 bytesToAllocate = filterBlocks * Constant::FilterBlockSizeInBytes;
 
-		this->byteBuffer = gcnew array<Byte>(bytesToAllocate);
+		this->block = (unsigned __int8 *)_aligned_malloc(bytesToAllocate, alignof(__m256d));
+		this->bytesAllocated = bytesToAllocate;
 		this->bytesInUse = 0;
 		this->sampleType = sampleType;
+	}
+
+	SampleBlock::!SampleBlock()
+	{
+		_aligned_free(this->block);
+	}
+
+	SampleBlock::~SampleBlock()
+	{
+		this->!SampleBlock();
 	}
 
 	__int32 SampleBlock::BytesPerSample(Dsp::SampleType sampleType)
@@ -34,230 +58,107 @@ namespace CrossTimeDsp::Dsp
 
 	SampleBlock^ SampleBlock::ConvertTo(Dsp::SampleType sampleType)
 	{
-		if (this->sampleType == sampleType)
-		{
-			return this;
-		}
-
 		__int32 bytesInUseAfterConversion = this->BytesPerSample(sampleType) * this->SamplesInUse;
 		SampleBlock^ convertedBlock = gcnew SampleBlock(bytesInUseAfterConversion, sampleType);
+		this->ConvertTo(convertedBlock);
+		return convertedBlock;
+	}
+
+	void SampleBlock::ConvertTo(SampleBlock^ block)
+	{
+		__int32 bytesInUseAfterConversion = this->BytesPerSample(block->sampleType) * this->SamplesInUse;
+		assert(block->MaximumSizeInBytes >= bytesInUseAfterConversion);
+
 		switch (this->sampleType)
 		{
 		case Dsp::SampleType::Double:
-			switch (sampleType)
+			switch (block->sampleType)
 			{
 			case Dsp::SampleType::Int16:
-				this->ConvertDoubleToQ15(convertedBlock);
+				SampleConverter::DoubleToQ15(this->Doubles, block->Int16s, this->DoubleSamples);
 				break;
 			case Dsp::SampleType::Int24:
-				this->ConvertDoubleToQ23(convertedBlock);
+				SampleConverter::DoubleToQ23(this->Doubles, block->block, this->DoubleSamples);
 				break;
 			case Dsp::SampleType::Int32:
-				this->ConvertDoubleToQ31(convertedBlock);
+				SampleConverter::DoubleToQ31(this->Doubles, block->Int32s, this->DoubleSamples);
 				break;
 			default:
-				throw gcnew NotSupportedException(String::Format("Conversion from {0} to {1} is not supported.", this->sampleType, sampleType));
+				throw gcnew NotSupportedException(String::Format("Conversion from {0} to {1} is not supported.", this->sampleType, block->sampleType));
 			}
 			break;
 		case Dsp::SampleType::Int16:
-			switch (sampleType)
+			switch (block->sampleType)
 			{
 			case Dsp::SampleType::Double:
-				this->ConvertQ15ToDouble(convertedBlock);
+				SampleConverter::Q15ToDouble(this->Int16s, block->Doubles, this->Int16Samples);
 				break;
 			case Dsp::SampleType::Int32:
-				this->ConvertQ15ToQ31(convertedBlock);
+				SampleConverter::Q15ToQ31(this->Int16s, block->Int32s, this->Int16Samples);
 				break;
 			default:
 				throw gcnew NotSupportedException(String::Format("Conversion from {0} to {1} is not supported.", this->sampleType, sampleType));
 			}
 			break;
 		case Dsp::SampleType::Int24:
-			switch (sampleType)
+			switch (block->sampleType)
 			{
 			case Dsp::SampleType::Double:
-				this->ConvertQ23ToDouble(convertedBlock);
+				SampleConverter::Q23ToDouble(this->block, block->Doubles, this->SamplesInUse);
 				break;
 			case Dsp::SampleType::Int32:
-				this->ConvertQ23ToQ31(convertedBlock);
+				SampleConverter::Q23ToQ31(this->block, block->Int32s, this->SamplesInUse);
 				break;
 			default:
-				throw gcnew NotSupportedException(String::Format("Conversion from {0} to {1} is not supported.", this->sampleType, sampleType));
+				throw gcnew NotSupportedException(String::Format("Conversion from {0} to {1} is not supported.", this->sampleType, block->sampleType));
 			}
 			break;
 		case Dsp::SampleType::Int32:
-			switch (sampleType)
+			switch (block->sampleType)
 			{
 			case Dsp::SampleType::Double:
-				this->ConvertQ31ToDouble(convertedBlock);
+				SampleConverter::Q31ToDouble(this->Int32s, block->Doubles, this->Int32Samples);
 				break;
 			case Dsp::SampleType::Int16:
-				this->ConvertQ31ToQ15(convertedBlock);
+				SampleConverter::Q31ToQ15(this->Int32s, block->Int16s, this->Int32Samples);
 				break;
 			case Dsp::SampleType::Int24:
-				this->ConvertQ31ToQ23(convertedBlock);
+				SampleConverter::Q31ToQ23(this->Int32s, block->block, this->Int32Samples);
 				break;
 			default:
-				throw gcnew NotSupportedException(String::Format("Conversion from {0} to {1} is not supported.", this->sampleType, sampleType));
+				throw gcnew NotSupportedException(String::Format("Conversion from {0} to {1} is not supported.", this->sampleType, block->sampleType));
 			}
 			break;
 		default:
 			throw gcnew NotSupportedException(String::Format("Conversion from sample type {0} is not supported.", this->sampleType));
 		}
 
-		convertedBlock->BytesInUse = bytesInUseAfterConversion;
-		return convertedBlock;
+		block->BytesInUse = bytesInUseAfterConversion;
 	}
 
+	void SampleBlock::CopyTo(__int32 sourceOffset, array<Byte>^ destination, __int32 destinationOffset, __int32 bytesToCopy)
+	{
+		pin_ptr<unsigned __int8> destinationPointer = &destination[destinationOffset];
+		std::memcpy(destinationPointer, this->block + sourceOffset, bytesToCopy);
+	}
+
+	// test hook
 	__int32 SampleBlock::GetInt24AsInt32(__int32 sample)
 	{
 		__int32 blockIndex = 3 * sample;
-		array<Byte>^ q24 = gcnew array<Byte> { this->ByteBuffer[blockIndex], this->ByteBuffer[blockIndex + 1], this->ByteBuffer[blockIndex + 2], 0 };
-		if (q24[2] >= 0x80)
-		{
-			q24[3] = 0xff;
-		}
-
-		return BitConverter::ToInt32(q24, 0);
+		__int32 lowByte = this->block[blockIndex] << 8;
+		__int32 midByte = this->block[blockIndex + 1] << 16;
+		__int32 highByte = this->block[blockIndex + 2] << 24;
+		__int32 integer = (highByte | midByte | lowByte) >> 8;
+		return integer;
 	}
 
-	void SampleBlock::ConvertDoubleToQ15(SampleBlock^ convertedBlock)
+	void SampleBlock::ZeroUnused()
 	{
-		for (__int32 sample = 0; sample < this->DoubleBufferCount; ++sample)
+		__int32 bytesToZero = this->bytesAllocated - this->bytesInUse;
+		if (bytesToZero > 0)
 		{
-			__int32 value = (__int32)this->DoubleBuffer[sample] >> Constant::ShiftBetween16BitSamplesAndQ31;
-			if (value > Int16::MaxValue)
-			{
-				convertedBlock->ShortBuffer[sample] = Int16::MaxValue;
-			}
-			else if (value < Int16::MinValue)
-			{
-				convertedBlock->ShortBuffer[sample] = Int16::MinValue;
-			}
-			else
-			{
-				convertedBlock->ShortBuffer[sample] = (__int16)value;
-			}
-		}
-	}
-
-	void SampleBlock::ConvertDoubleToQ23(SampleBlock^ convertedBlock)
-	{
-		for (__int32 sample = 0; sample < this->DoubleBufferCount; ++sample)
-		{
-			this->SetInt32AsInt24((__int32)this->DoubleBuffer[sample] >> Constant::ShiftBetween24BitSamplesAndQ31, convertedBlock, sample);
-		}
-	}
-
-	void SampleBlock::ConvertDoubleToQ31(SampleBlock^ convertedBlock)
-	{
-		for (__int32 sample = 0; sample < this->DoubleBufferCount; ++sample)
-		{
-			double value = this->DoubleBuffer[sample];
-			if (value > Int32::MaxValue)
-			{
-				convertedBlock->IntBuffer[sample] = Int32::MaxValue;
-			}
-			else if (value < Int32::MinValue)
-			{
-				convertedBlock->IntBuffer[sample] = Int32::MinValue;
-			}
-			else
-			{
-				convertedBlock->IntBuffer[sample] = (__int32)value;
-			}
-		}
-	}
-
-	void SampleBlock::ConvertQ15ToDouble(SampleBlock^ convertedBlock)
-	{
-		for (__int32 sample = 0; sample < this->ShortBufferCount; ++sample)
-		{
-			convertedBlock->DoubleBuffer[sample] = (__int64)this->ShortBuffer[sample] << Constant::ShiftBetween16BitSamplesAndQ31;
-		}
-	}
-
-	void SampleBlock::ConvertQ15ToQ31(SampleBlock^ convertedBlock)
-	{
-		for (__int32 sample = 0; sample < this->ShortBufferCount; ++sample)
-		{
-			convertedBlock->IntBuffer[sample] = (__int32)this->ShortBuffer[sample] << Constant::ShiftBetween16BitSamplesAndQ31;
-		}
-	}
-
-	void SampleBlock::ConvertQ23ToDouble(SampleBlock^ convertedBlock)
-	{
-		for (__int32 sample = 0; sample < this->DoubleBufferCount; ++sample)
-		{
-			convertedBlock->DoubleBuffer[sample] = (double)((__int64)this->GetInt24AsInt32(sample) << Constant::ShiftBetween24BitSamplesAndQ31);
-		}
-	}
-
-	void SampleBlock::ConvertQ23ToQ31(SampleBlock^ convertedBlock)
-	{
-		for (__int32 sample = 0; sample < this->IntBufferCount; ++sample)
-		{
-			convertedBlock->IntBuffer[sample] = this->GetInt24AsInt32(sample) << Constant::ShiftBetween24BitSamplesAndQ31;
-		}
-	}
-
-	void SampleBlock::ConvertQ31ToDouble(SampleBlock^ convertedBlock)
-	{
-		for (__int32 sample = 0; sample < this->IntBufferCount; ++sample)
-		{
-			convertedBlock->DoubleBuffer[sample] = this->IntBuffer[sample];
-		}
-	}
-
-	void SampleBlock::ConvertQ31ToQ15(SampleBlock^ convertedBlock)
-	{
-		for (__int32 sample = 0; sample < this->IntBufferCount; ++sample)
-		{
-			__int32 value = this->IntBuffer[sample] >> Constant::ShiftBetween16BitSamplesAndQ31;
-			if (value > Int16::MaxValue)
-			{
-				convertedBlock->ShortBuffer[sample] = Int16::MaxValue;
-			}
-			else if (value < Int16::MinValue)
-			{
-				convertedBlock->ShortBuffer[sample] = Int16::MinValue;
-			}
-			else
-			{
-				convertedBlock->ShortBuffer[sample] = (__int16)value;
-			}
-		}
-	}
-
-	void SampleBlock::ConvertQ31ToQ23(SampleBlock^ convertedBlock)
-	{
-		for (__int32 sample = 0; sample < this->IntBufferCount; ++sample)
-		{
-			this->SetInt32AsInt24(this->IntBuffer[sample] >> Constant::ShiftBetween24BitSamplesAndQ31, convertedBlock, sample);
-		}
-	}
-
-	void SampleBlock::SetInt32AsInt24(__int32 value, SampleBlock^ convertedBlock, __int32 sample)
-	{
-		__int32 blockIndex = 3 * sample;
-		if (value > Constant::Int24::Int24::MaxValue)
-		{
-			convertedBlock->ByteBuffer[blockIndex] = Constant::Int24::Int24::MaxValueBytes[0];
-			convertedBlock->ByteBuffer[blockIndex + 1] = Constant::Int24::Int24::MaxValueBytes[1];
-			convertedBlock->ByteBuffer[blockIndex + 2] = Constant::Int24::Int24::MaxValueBytes[2];
-		}
-		else if (value < Constant::Int24::Int24::MinValue)
-		{
-			convertedBlock->ByteBuffer[blockIndex] = Constant::Int24::Int24::MinValueBytes[0];
-			convertedBlock->ByteBuffer[blockIndex + 1] = Constant::Int24::Int24::MinValueBytes[1];
-			convertedBlock->ByteBuffer[blockIndex + 2] = Constant::Int24::Int24::MinValueBytes[2];
-		}
-		else
-		{
-			array<Byte>^ q32Bytes = BitConverter::GetBytes(value);
-			convertedBlock->ByteBuffer[blockIndex] = q32Bytes[0];
-			convertedBlock->ByteBuffer[blockIndex + 1] = q32Bytes[1];
-			convertedBlock->ByteBuffer[blockIndex + 2] = q32Bytes[2];
+			std::memset(this->block + this->bytesInUse, 0, bytesToZero);
 		}
 	}
 }

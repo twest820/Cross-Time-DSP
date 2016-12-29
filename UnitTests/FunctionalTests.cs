@@ -5,6 +5,7 @@ using NAudio.Wave;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using TagLib;
 using File = System.IO.File;
 using TagFile = TagLib.File;
@@ -14,9 +15,9 @@ namespace CrossTimeDsp.UnitTests
     [TestClass]
     public class FunctionalTests : CrossTimeTest
     {
-        private BiquadElement CreateBiquad(FilterType type, double f0, double gainInDB, double q, TimeDirection timeDirection)
+        private Biquad CreateBiquad(FilterType type, double f0, double gainInDB, double q, TimeDirection timeDirection)
         {
-            BiquadElement biquad = new BiquadElement();
+            Biquad biquad = new Biquad();
             biquad.F0 = f0;
             biquad.GainInDB = gainInDB;
             biquad.Q = q;
@@ -35,13 +36,13 @@ namespace CrossTimeDsp.UnitTests
                 File.Copy(TestConstant.SourceFilePath16Bit, inputFilePath);
             }
 
-            CrossTimeEngine engine = new CrossTimeEngine(TestConstant.ConfigurationFile, this);
+            CrossTimeEngine engine = new CrossTimeEngine(TestConstant.DefaultConfigurationFile, this);
             string outputFileName = String.Format("{0}{1}.wav", Path.GetFileNameWithoutExtension(inputFilePath), engine.Configuration.Output.CollidingFileNamePostfix);
             this.RemoveExistingOutputFiles(outputFileName);
             DateTime startUtc = DateTime.UtcNow;
 
             // process file and output file should be created
-            engine.Configuration.Filters.Filters.Clear();
+            engine.Configuration.Filters.Clear();
             engine.FilterFiles(Environment.CurrentDirectory, inputFileName, Environment.CurrentDirectory);
             DateTime firstOutputFileWriteTimeUtc = File.GetLastWriteTimeUtc(outputFileName);
             Assert.IsTrue(firstOutputFileWriteTimeUtc > startUtc);
@@ -77,22 +78,22 @@ namespace CrossTimeDsp.UnitTests
                                            tweeterFileNameDouble, tweeterFileNameQ31, tweeterFileNameQ31_32x64, tweeterFileNameQ31Adaptive,
                                            subwooferFileNameDouble, subwooferFileNameQ31_32x64, subwooferFileNameQ31_64x64, subwooferFileNameQ31Adaptive,
                                            subwooferLinearizedFileNameDouble, subwooferLinearizedFileNameQ31Adaptive);
-            CrossTimeEngine engine = new CrossTimeEngine(TestConstant.ConfigurationFile, this);
+            CrossTimeEngine engine = new CrossTimeEngine(TestConstant.DefaultConfigurationFile, this);
 
             // midrange
-            engine.Configuration.Filters.Filters.Clear();
+            engine.Configuration.Filters.Clear();
             // 200Hz LR6 highpass
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Highpass, 200.0, 0.0, 0.5, TimeDirection.Forward));
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Highpass, 200.0, 0.0, 1.0, TimeDirection.Forward));
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Highpass, 200.0, 0.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Highpass, 200.0, 0.0, 0.5, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Highpass, 200.0, 0.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Highpass, 200.0, 0.0, 1.0, TimeDirection.Forward));
             // 1700Hz LR6 lowpass
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 1700.0, 0.0, 0.5, TimeDirection.Forward));
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 1700.0, 0.0, 1.0, TimeDirection.Forward));
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 1700.0, 0.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 1700.0, 0.0, 0.5, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 1700.0, 0.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 1700.0, 0.0, 1.0, TimeDirection.Forward));
             // dipole EQ
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Peaking, 150.0, 15.0, 0.5, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 150.0, 15.0, 0.5, TimeDirection.Forward));
             // driver EQ
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Peaking, 550.0, 4.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 550.0, 4.0, 1.0, TimeDirection.Forward));
 
             engine.Configuration.Engine.Precision = FilterPrecision.Double;
             engine.FilterFiles(Environment.CurrentDirectory, TestConstant.SourceFilePath16Bit, midrangeFileNameDouble);
@@ -107,16 +108,16 @@ namespace CrossTimeDsp.UnitTests
             this.VerifyWaveFilesEquivalent(midrangeFileNameQ31Adaptive, midrangeFileNameDouble, 1.0, 6.0 * TestConstant.Q23ToQ31TruncationErrorIncrease, true);
 
             // tweeter
-            engine.Configuration.Filters.Filters.Clear();
+            engine.Configuration.Filters.Clear();
             // 1700Hz LR6 highpass
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Highpass, 1700.0, 0.0, 0.5, TimeDirection.Forward));
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Highpass, 1700.0, 0.0, 1.0, TimeDirection.Forward));
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Highpass, 1700.0, 0.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Highpass, 1700.0, 0.0, 0.5, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Highpass, 1700.0, 0.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Highpass, 1700.0, 0.0, 1.0, TimeDirection.Forward));
             // dipole EQ
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Peaking, 1400.0, 5.0, 1.9, TimeDirection.Forward));
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Peaking, 3800.0, -2.0, 3.0, TimeDirection.Forward));
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Peaking, 7300.0, 3.5, 2.0, TimeDirection.Forward));
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Peaking, 13000.0, -3.5, 4.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 1400.0, 5.0, 1.9, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 3800.0, -2.0, 3.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 7300.0, 3.5, 2.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 13000.0, -3.5, 4.0, TimeDirection.Forward));
 
             Trace.TraceInformation(String.Empty);
             engine.Configuration.Engine.Precision = FilterPrecision.Double;
@@ -132,16 +133,16 @@ namespace CrossTimeDsp.UnitTests
             this.VerifyWaveFilesEquivalent(tweeterFileNameQ31Adaptive, tweeterFileNameDouble, 1.0, 1.0 * TestConstant.Q23ToQ31TruncationErrorIncrease, true);
 
             // subwoofer
-            engine.Configuration.Filters.Filters.Clear();
+            engine.Configuration.Filters.Clear();
             // 200Hz LR6 lowpass
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 200.0, 0.0, 0.5, TimeDirection.Forward));
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 200.0, 0.0, 1.0, TimeDirection.Forward));
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 200.0, 0.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 200.0, 0.0, 0.5, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 200.0, 0.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 200.0, 0.0, 1.0, TimeDirection.Forward));
             // dipole EQ
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Peaking, 39.0, 14.0, 0.5, TimeDirection.Forward));
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Peaking, 180.0, 2.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 39.0, 14.0, 0.5, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 180.0, 2.0, 1.0, TimeDirection.Forward));
             // forward time phase linearization
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Allpass, 150.0, 0.0, 0.5 * Math.Sqrt(2.0), TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Allpass, 150.0, 0.0, 0.5 * Math.Sqrt(2.0), TimeDirection.Forward));
 
             Trace.TraceInformation(String.Empty);
             engine.Configuration.Engine.Precision = FilterPrecision.Double;
@@ -157,8 +158,8 @@ namespace CrossTimeDsp.UnitTests
             this.VerifyWaveFilesEquivalent(subwooferFileNameQ31Adaptive, subwooferFileNameDouble, 1.0, 28.0 * TestConstant.Q23ToQ31TruncationErrorIncrease, true);
 
             // subwoofer with reverse time phase linearization
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Allpass, 200.0, 0.0, 1.0, TimeDirection.Reverse));
-            engine.Configuration.Filters.Filters.Add(this.CreateBiquad(FilterType.Allpass, 39.0, 0.0, 0.5 * Math.Sqrt(2.0), TimeDirection.Reverse));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Allpass, 200.0, 0.0, 1.0, TimeDirection.Reverse));
+            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Allpass, 39.0, 0.0, 0.5 * Math.Sqrt(2.0), TimeDirection.Reverse));
 
             engine.Configuration.Engine.Precision = FilterPrecision.Double;
             engine.FilterFiles(Environment.CurrentDirectory, TestConstant.SourceFilePath16Bit, subwooferLinearizedFileNameDouble);
@@ -178,30 +179,73 @@ namespace CrossTimeDsp.UnitTests
 
             // run test cases
             // check 24 bit cases
-            // scale factor is quirky as the initial 24 bit reference file was created with a slightly different approach towards
-            // anti-clipping attenuation
-            CrossTimeEngine engine = new CrossTimeEngine(TestConstant.ConfigurationFile, this);
+            CrossTimeEngine engine = new CrossTimeEngine(TestConstant.DefaultConfigurationFile, this);
             engine.FilterFiles(Environment.CurrentDirectory, TestConstant.SourceFilePath16Bit, outputFileName24Bit);
-            string referenceFilePath24Bit = "whiteNoise.InverseAllpass.44100.24.wav";
-            double referenceFileScaleFactor = 1.019154;
-            this.VerifyWaveFilesEquivalent(outputFileName24Bit, referenceFilePath24Bit, referenceFileScaleFactor, 1.5 * TestConstant.Q23ToQ31TruncationErrorIncrease, true);
+            this.VerifyWaveFilesEquivalent(outputFileName24Bit, TestConstant.ReferenceFilePath24Bit, TestConstant.ReferenceFileScaleFactor, 1.5 * TestConstant.Q23ToQ31TruncationErrorIncrease, true);
 
             // check cross bitness case - cases in the same bitness are less likely to catch conversion and 24 bit handling defects
-            // tolerance here may seem loose but comparing 24 bit samples to their truncated 16 bit form is inexact
-            string referenceFilePath16Bit = "whiteNoise.InverseAllpass.44100.16.wav";
-            this.VerifyWaveFilesEquivalent(outputFileName24Bit, referenceFilePath16Bit, 0.3162 * 256.0, 40.5 * TestConstant.Q23ToQ31TruncationErrorIncrease, false);
+            // Scale factor is bit length times anti-clipping gain.
+            // Tolerance here may seem loose but comparing 24 bit samples to their truncated 16 bit form is inexact.
+            this.VerifyWaveFilesEquivalent(outputFileName24Bit, TestConstant.ReferenceFilePath16Bit, 0.3162 * 256.0, 40.5 * TestConstant.Q23ToQ31TruncationErrorIncrease, false);
 
             // check fixed point
             engine.Configuration.Engine.Precision = FilterPrecision.Q31_32x64;
             engine.FilterFiles(Environment.CurrentDirectory, TestConstant.SourceFilePath16Bit, outputFileNameQ31x63);
-            this.VerifyWaveFilesEquivalent(outputFileNameQ31x63, referenceFilePath24Bit, referenceFileScaleFactor, 1.6 * TestConstant.Q23ToQ31TruncationErrorIncrease, false);
+            this.VerifyWaveFilesEquivalent(outputFileNameQ31x63, TestConstant.ReferenceFilePath24Bit, TestConstant.ReferenceFileScaleFactor, 1.6 * TestConstant.Q23ToQ31TruncationErrorIncrease, false);
 
             // check 16 bit cases
+            double adjustmentToUnityGain = -engine.Configuration.Engine.ReverseTimeAntiClippingAttenuationInDB;
             engine.Configuration.Engine.Precision = FilterPrecision.Double;
-            engine.Configuration.Engine.ReverseTimeAntiClippingAttenuationInDB = 0.0;
+            engine.Configuration.Engine.ReverseTimeAntiClippingAttenuationInDB += adjustmentToUnityGain;
+            Filter firstReverseTimeFilter = engine.Configuration.Filters.FirstOrDefault(filter => filter.TimeDirection == TimeDirection.Reverse);
+            if (firstReverseTimeFilter != null)
+            {
+                firstReverseTimeFilter.AdjustGain(adjustmentToUnityGain);
+            }
             engine.Configuration.Output.BitsPerSample = 16;
             engine.FilterFiles(Environment.CurrentDirectory, TestConstant.SourceFilePath16Bit, outputFileName16Bit);
-            this.VerifyWaveFilesEquivalent(outputFileName16Bit, referenceFilePath16Bit, 1.0, 1.0 * TestConstant.Q15ToQ31TruncationErrorIncrease, true);
+            this.VerifyWaveFilesEquivalent(outputFileName16Bit, TestConstant.ReferenceFilePath16Bit, 1.0, 1.0 * TestConstant.Q15ToQ31TruncationErrorIncrease, true);
+        }
+
+        [TestMethod]
+        public unsafe void SampleBlockConversions()
+        {
+            SampleBlock reference16Bit;
+            using (MediaFoundationReader reference16BitReader = new MediaFoundationReader(TestConstant.ReferenceFilePath16Bit))
+            {
+                byte[] buffer16Bit = new byte[reference16BitReader.Length];
+                int bytesRead = reference16BitReader.Read(buffer16Bit, 0, buffer16Bit.Length);
+                reference16Bit = new SampleBlock(buffer16Bit, bytesRead, SampleTypeExtensions.FromBitsPerSample(reference16BitReader.WaveFormat.BitsPerSample));
+            }
+
+            SampleBlock reference24Bit;
+            using (MediaFoundationReader reference24BitReader = new MediaFoundationReader(TestConstant.ReferenceFilePath24Bit))
+            {
+                byte[] buffer24Bit = new byte[reference24BitReader.Length];
+                int bytesRead = reference24BitReader.Read(buffer24Bit, 0, buffer24Bit.Length);
+                reference24Bit = new SampleBlock(buffer24Bit, bytesRead, SampleTypeExtensions.FromBitsPerSample(reference24BitReader.WaveFormat.BitsPerSample));
+            }
+
+            Assert.IsTrue(reference16Bit.Int16Samples == reference24Bit.SamplesInUse);
+
+            SampleBlock reference16BitAsDouble = reference16Bit.ConvertTo(SampleType.Double);
+            SampleBlock reference16BitAsQ31 = reference16Bit.ConvertTo(SampleType.Int32);
+            SampleBlock reference24BitAsDouble = reference24Bit.ConvertTo(SampleType.Double);
+            SampleBlock reference24BitAsQ31 = reference24Bit.ConvertTo(SampleType.Int32);
+
+            Assert.IsTrue(reference16Bit.Int16Samples == reference16BitAsDouble.DoubleSamples);
+            Assert.IsTrue(reference16Bit.Int16Samples == reference16BitAsQ31.Int32Samples);
+            Assert.IsTrue(reference16Bit.Int16Samples == reference24BitAsDouble.DoubleSamples);
+            Assert.IsTrue(reference16Bit.Int16Samples == reference24BitAsQ31.Int32Samples);
+
+            for (int sample = 0; sample < reference16Bit.Int16Samples; ++sample)
+            {
+                Assert.IsTrue(((int)reference16Bit.Int16s[sample] << TestConstant.ShiftBetween16BitSamplesAndQ31) == reference16BitAsQ31.Int32s[sample]);
+                Assert.IsTrue((int)reference16BitAsDouble.Doubles[sample] == reference16BitAsQ31.Int32s[sample]);
+
+                Assert.IsTrue((reference24Bit.GetInt24AsInt32(sample) << TestConstant.ShiftBetween24BitSamplesAndQ31) == reference24BitAsQ31.Int32s[sample]);
+                Assert.IsTrue((int)reference24BitAsDouble.Doubles[sample] == reference24BitAsQ31.Int32s[sample]);
+            }
         }
 
         private void RemoveExistingOutputFiles(params string[] filesToRemove)
@@ -222,8 +266,9 @@ namespace CrossTimeDsp.UnitTests
             WaveFormat actualFormat;
             using (MediaFoundationReader actualReader = new MediaFoundationReader(actualFilePath))
             {
-                actual = new SampleBlock((int)actualReader.Length, SampleTypeExtensions.FromBitsPerSample(actualReader.WaveFormat.BitsPerSample));
-                actual.BytesInUse = actualReader.Read(actual.ByteBuffer, 0, actual.MaximumSizeInBytes);
+                byte[] buffer = new byte[actualReader.Length];
+                int bytesRead = actualReader.Read(buffer, 0, buffer.Length);
+                actual = new SampleBlock(buffer, bytesRead, SampleTypeExtensions.FromBitsPerSample(actualReader.WaveFormat.BitsPerSample));
                 actualFormat = actualReader.WaveFormat;
             }
 
@@ -231,8 +276,9 @@ namespace CrossTimeDsp.UnitTests
             WaveFormat expectedFormat;
             using (MediaFoundationReader expectedReader = new MediaFoundationReader(expectedFilePath))
             {
-                expected = new SampleBlock((int)expectedReader.Length, SampleTypeExtensions.FromBitsPerSample(expectedReader.WaveFormat.BitsPerSample));
-                expected.BytesInUse = expectedReader.Read(expected.ByteBuffer, 0, expected.MaximumSizeInBytes);
+                byte[] buffer = new byte[expectedReader.Length];
+                int bytesRead = expectedReader.Read(buffer, 0, buffer.Length);
+                expected = new SampleBlock(buffer, bytesRead, SampleTypeExtensions.FromBitsPerSample(expectedReader.WaveFormat.BitsPerSample));
                 expectedFormat = expectedReader.WaveFormat;
             }
 
@@ -269,13 +315,13 @@ namespace CrossTimeDsp.UnitTests
                         switch (actual.SampleType)
                         {
                             case SampleType.Int16:
-                                actualSample = actual.ShortBuffer[sample];
+                                actualSample = actual.Int16s[sample];
                                 break;
                             case SampleType.Int24:
                                 actualSample = actual.GetInt24AsInt32(sample);
                                 break;
                             case SampleType.Int32:
-                                actualSample = actual.IntBuffer[sample];
+                                actualSample = actual.Int32s[sample];
                                 break;
                             default:
                                 throw new NotSupportedException(String.Format("Unhandled sample type {0}.", expected.SampleType));
@@ -286,13 +332,13 @@ namespace CrossTimeDsp.UnitTests
                         switch (expected.SampleType)
                         {
                             case SampleType.Int16:
-                                expectedSample = expected.ShortBuffer[sample];
+                                expectedSample = expected.Int16s[sample];
                                 break;
                             case SampleType.Int24:
                                 expectedSample = expected.GetInt24AsInt32(sample);
                                 break;
                             case SampleType.Int32:
-                                expectedSample = expected.IntBuffer[sample];
+                                expectedSample = expected.Int32s[sample];
                                 break;
                             default:
                                 throw new NotSupportedException(String.Format("Unhandled sample type {0}.", expected.SampleType));

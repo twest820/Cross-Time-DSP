@@ -26,20 +26,26 @@ namespace CrossTimeDsp.UnitTests
         }
 
         [TestMethod]
-        public void FlacToInt24OutputViaDouble()
+        public void FlacToInt24ViaBiquadAndFirstOrderDouble()
         {
-            this.FilterFirstTrackInLibrary(SampleType.Double, SampleType.Int24);
+            this.FilterFirstTrackInLibrary(SampleType.Double, SampleType.Int24, TestConstant.DefaultConfigurationFile);
         }
 
         [TestMethod]
-        public void FlacToInt24OutputViaInt32()
+        public void FlacToInt24ViaThirdOrderDouble()
         {
-            this.FilterFirstTrackInLibrary(SampleType.Int32, SampleType.Int24);
+            this.FilterFirstTrackInLibrary(SampleType.Double, SampleType.Int24, "LinearizeDouble.xml");
         }
 
-        private void FilterFirstTrackInLibrary(SampleType dataPathSampleType, SampleType outputSampleType)
+        [TestMethod]
+        public void FlacToInt24ViaBiquadAndFirstOrderInt32()
         {
-            CrossTimeEngine dspEngine = new CrossTimeEngine(TestConstant.ConfigurationFile, this);
+            this.FilterFirstTrackInLibrary(SampleType.Int32, SampleType.Int24, "BiquadFirstOrderQ31.xml");
+        }
+
+        private void FilterFirstTrackInLibrary(SampleType dataPathSampleType, SampleType outputSampleType, string configFilePath)
+        {
+            CrossTimeEngine dspEngine = new CrossTimeEngine(configFilePath, this);
 
             string musicFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
             string firstArtistPath = Directory.GetDirectories(musicFolderPath).First();
@@ -49,56 +55,60 @@ namespace CrossTimeDsp.UnitTests
             this.TestContext.WriteLine("Load and buffer");
             DateTime loadStartedUtc = DateTime.UtcNow;
             MediaFoundationReader inputStream = new MediaFoundationReader(firstTrackPath);
-            SampleBuffer inputBuffer = new SampleBuffer(inputStream);
-            DateTime loadStoppedUtc = DateTime.UtcNow;
-            this.TestContext.WriteLine("{0}", (loadStoppedUtc - loadStartedUtc).ToString(Constant.ElapsedTimeFormat));
+            using (SampleBuffer inputBuffer = new SampleBuffer(inputStream))
+            {
+                DateTime loadStoppedUtc = DateTime.UtcNow;
+                this.TestContext.WriteLine("{0}", (loadStoppedUtc - loadStartedUtc).ToString(Constant.ElapsedTimeFormat));
 
-            this.TestContext.WriteLine("Warmup iterations");
-            for (int warmup = 0; warmup < 2; ++warmup)
-            {
-                this.FilterStream(dspEngine.Configuration, inputBuffer, dataPathSampleType, outputSampleType);
-            }
-            this.TestContext.WriteLine("Running iterations");
-            for (int iteration = 0; iteration < 25; ++iteration)
-            {
-                this.FilterStream(dspEngine.Configuration, inputBuffer, dataPathSampleType, outputSampleType);
+                this.TestContext.WriteLine("Warmup iterations");
+                for (int warmup = 0; warmup < 10; ++warmup)
+                {
+                    this.FilterStream(dspEngine.Configuration, inputBuffer, dataPathSampleType, outputSampleType);
+                }
+
+                this.TestContext.WriteLine("Running iterations");
+                for (int iteration = 0; iteration < 25; ++iteration)
+                {
+                    this.FilterStream(dspEngine.Configuration, inputBuffer, dataPathSampleType, outputSampleType);
+                }
             }
         }
 
         private void FilterStream(CrossTimeDspConfiguration configuration, SampleBuffer inputBuffer, SampleType dataPathSampleType, SampleType outputSampleType)
         {
-            bool doubleDataPath = dataPathSampleType == SampleType.Double;
-            if (doubleDataPath == false)
+            // setup
+            FilterBank filters = new FilterBank(configuration.Engine.Precision, inputBuffer.WaveFormat.SampleRate, inputBuffer.WaveFormat.Channels, configuration.Engine.Q31Adaptive.Q31_32x64_Threshold, configuration.Engine.Q31Adaptive.Q31_64x64_Threshold);
+            foreach (Filter filter in configuration.Filters)
             {
-                configuration.Engine.Precision = FilterPrecision.Q31Adaptive;
+                filter.AddTo(filters);
             }
 
-            FilterBank filters = new FilterBank(configuration.Engine.Precision, configuration.Engine.Q31Adaptive.Q31_32x64_Threshold, configuration.Engine.Q31Adaptive.Q31_64x64_Threshold);
-            foreach (FilterElement filter in configuration.Filters.Filters)
+            // time duration of reverse time pass
+            DateTime filteringStartedUtc = DateTime.UtcNow;
+            using (SampleBuffer reverseTimeBuffer = new SampleBuffer(inputBuffer.WaveFormat.SampleRate, outputSampleType.BitsPerSample(), inputBuffer.WaveFormat.Channels))
             {
-                if (filter is BiquadElement)
+                SampleBlock recirculatingDataPathBlock = null;
+                for (LinkedListNode<SampleBlock> blockNode = inputBuffer.Blocks.Last; blockNode != null; blockNode = blockNode.Previous)
                 {
-                    BiquadElement biquad = (BiquadElement)filter;
-                    filters.AddBiquad(biquad.Type, inputBuffer.WaveFormat.SampleRate, biquad.F0, biquad.GainInDB, biquad.Q, inputBuffer.WaveFormat.Channels);
+                    SampleBlock filteredBlock = filters.FilterReverse(blockNode.Value, dataPathSampleType, outputSampleType, ref recirculatingDataPathBlock);
+                    reverseTimeBuffer.Blocks.AddFirst(filteredBlock);
+                }
+                if (recirculatingDataPathBlock != null)
+                {
+                    recirculatingDataPathBlock.Dispose();
+                }
+                reverseTimeBuffer.RecalculateBlocks();
+
+                DateTime filteringStoppedUtc = DateTime.UtcNow;
+                if (filters.TimingAvailable)
+                {
+                    this.TestContext.WriteLine("{0} ({1} {2} {3})", (filteringStoppedUtc - filteringStartedUtc).ToString(Constant.ElapsedTimeFormat), filters.ToDataPathTime.ToString(Constant.ElapsedTimeFormat), filters.FilterTime.ToString(Constant.ElapsedTimeFormat), filters.ToOutputTime.ToString(Constant.ElapsedTimeFormat));
                 }
                 else
                 {
-                    filters.AddFirstOrderFilter(filter.Type, inputBuffer.WaveFormat.SampleRate, filter.F0, inputBuffer.WaveFormat.Channels);
+                    this.TestContext.WriteLine("{0}", (filteringStoppedUtc - filteringStartedUtc).ToString(Constant.ElapsedTimeFormat));
                 }
             }
-
-            DateTime filteringStartedUtc = DateTime.UtcNow;
-            SampleBuffer reverseTimeBuffer = new SampleBuffer(inputBuffer.WaveFormat.SampleRate, outputSampleType.BitsPerSample(), inputBuffer.WaveFormat.Channels);
-            for (LinkedListNode<SampleBlock> blockNode = inputBuffer.Blocks.Last; blockNode != null; blockNode = blockNode.Previous)
-            {
-                SampleBlock block = blockNode.Value;
-                SampleBlock filteredBlock = filters.FilterReverse(block, dataPathSampleType, outputSampleType);
-                reverseTimeBuffer.Blocks.AddFirst(filteredBlock);
-            }
-            reverseTimeBuffer.RecalculateBlocks();
-
-            DateTime filteringStoppedUtc = DateTime.UtcNow;
-            this.TestContext.WriteLine("{0}", (filteringStoppedUtc - filteringStartedUtc).ToString(Constant.ElapsedTimeFormat));
         }
     }
 }

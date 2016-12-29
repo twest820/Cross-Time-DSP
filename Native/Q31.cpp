@@ -15,7 +15,7 @@ namespace CrossTimeDsp::Dsp
 	Q31::Q31(double value, __int32 fractionalBits)
 	{
 		this->fractionalBits = fractionalBits;
-		this->value = (int)(std::pow(2.0, (double)fractionalBits) * value);
+		this->value = (__int32)(std::pow(2.0, (double)fractionalBits) * value);
 	}
 
 	__int32 Q31::FractionalBits()
@@ -23,9 +23,14 @@ namespace CrossTimeDsp::Dsp
 		return this->fractionalBits;
 	}
 
+	__int32 Q31::Value()
+	{
+		return this->value;
+	}
+
 	__int32 Q31::GetOptimalNumberOfFractionalBits(double value)
 	{
-		__int32 integerBits = std::max(0, (int)std::ceil(std::log2(std::abs(value)) + 10 * std::numeric_limits<double>::epsilon()));
+		__int32 integerBits = std::max(0, (__int32)std::ceil(std::log2(std::abs(value)) + 10 * std::numeric_limits<double>::epsilon()));
 		if (integerBits > Q31::MaximumFractionalBits)
 		{
 			throw new std::invalid_argument("value: " + std::to_string(value) + " is too large to fit in a 32 bit signed integer.");
@@ -35,7 +40,7 @@ namespace CrossTimeDsp::Dsp
 
 	__int32 Q31::GetOptimalNumberOfFractionalBits(std::initializer_list<double> values)
 	{
-		int largestCommonNumberOfFractionalBits = Q31::MaximumFractionalBits;
+		__int32 largestCommonNumberOfFractionalBits = Q31::MaximumFractionalBits;
 		for each(double value in values)
 		{
 			largestCommonNumberOfFractionalBits = std::min(Q31::GetOptimalNumberOfFractionalBits(value), largestCommonNumberOfFractionalBits);
@@ -53,7 +58,7 @@ namespace CrossTimeDsp::Dsp
 	/// <summary>
 	/// Performs a 32x32 bit multiply with 64 bit accumulation.  Post shifting is the caller's responsibility.
 	/// </summary>
-	__int64 Q31::operator *(int y)
+	__int64 Q31::operator *(__int32 y)
 	{
 		return (__int64)this->value * (__int64)y;
 	}

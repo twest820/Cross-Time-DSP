@@ -69,15 +69,16 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Configuration\BiquadElement.cs" />
-    <Compile Include="Configuration\ConfigurationConstants.cs" />
+    <Compile Include="Configuration\Biquad.cs" />
     <Compile Include="Configuration\CrossTimeDspConfiguration.cs" />
     <Compile Include="Configuration\Encoding.cs" />
-    <Compile Include="Configuration\EngineElement.cs" />
-    <Compile Include="Configuration\FilterElement.cs" />
-    <Compile Include="Configuration\FiltersElement.cs" />
-    <Compile Include="Configuration\OutputElement.cs" />
+    <Compile Include="Configuration\Engine.cs" />
+    <Compile Include="Configuration\FirstOrderFilter.cs" />
+    <Compile Include="Configuration\Filter.cs" />
+    <Compile Include="Configuration\LinearizeThreeWay.cs" />
+    <Compile Include="Configuration\Output.cs" />
     <Compile Include="Configuration\Q31AdaptiveElement.cs" />
+    <Compile Include="Configuration\ThirdOrderFilter.cs" />
     <Compile Include="Configuration\TimeDirection.cs" />
     <Compile Include="Constant.cs" />
     <Compile Include="CrossTimeEngine.cs" />

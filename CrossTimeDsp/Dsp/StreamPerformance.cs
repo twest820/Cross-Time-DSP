@@ -5,6 +5,8 @@ namespace CrossTimeDsp.Dsp
     internal class StreamPerformance
     {
         public DateTime CompleteTimeUtc { get; set; }
+        public DateTime EncodingStartedUtc { get; set; }
+        public DateTime EncodingStoppedUtc { get; set; }
         public bool HasForwardTime { get; set; }
         public DateTime ReverseBufferCompleteUtc { get; set; }
         public DateTime ReverseTimeCompleteUtc { get; set; }

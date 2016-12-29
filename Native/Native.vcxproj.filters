@@ -13,6 +13,24 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\HigherOrder">
+      <UniqueIdentifier>{ec165cdb-323d-4d92-bca4-4d4e49b6e6ef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\HigherOrder">
+      <UniqueIdentifier>{cb6fb1d8-2468-4d58-aaf0-dedd132ea557}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Multiway">
+      <UniqueIdentifier>{bb2c09e5-2c9b-4042-8bbe-7c9335c3ea0a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Stereo">
+      <UniqueIdentifier>{630ffac7-f7ac-4c25-8785-ba77441fabf9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Multiway">
+      <UniqueIdentifier>{b926cd29-f902-4b44-8fc8-0485460bd141}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Stereo">
+      <UniqueIdentifier>{18a3c2ee-6910-4c23-9644-b9a8acf858f0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Stdafx.h">
@@ -21,22 +39,10 @@
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="BiquadDouble.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Constant.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="IFilter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FirstOrderFilterDouble.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GainDouble.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="BiquadQ31.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Q31.h">
@@ -45,25 +51,7 @@
     <ClInclude Include="resource1.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="BiquadQ31_32x64.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Q63.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="BiquadQ31_64x64.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GainQ31.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GainQ31_64x64.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FirstOrderFilterQ31.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FirstOrderFilterQ31_32x64.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FilterBank.h">
@@ -81,6 +69,75 @@
     <ClInclude Include="SampleBlock.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="InstructionSet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SampleConverter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FirstOrderCoefficients.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BiquadCoefficients.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GainDouble.h">
+      <Filter>Header Files\Multiway</Filter>
+    </ClInclude>
+    <ClInclude Include="GainQ31.h">
+      <Filter>Header Files\Multiway</Filter>
+    </ClInclude>
+    <ClInclude Include="GainQ31_64x64.h">
+      <Filter>Header Files\Multiway</Filter>
+    </ClInclude>
+    <ClInclude Include="StereoBiquad1FirstOrder1Double.h">
+      <Filter>Header Files\HigherOrder</Filter>
+    </ClInclude>
+    <ClInclude Include="Biquad1FirstOrder1Double.h">
+      <Filter>Header Files\HigherOrder</Filter>
+    </ClInclude>
+    <ClInclude Include="Biquad1Double.h">
+      <Filter>Header Files\Multiway</Filter>
+    </ClInclude>
+    <ClInclude Include="Biquad1Q31.h">
+      <Filter>Header Files\Multiway</Filter>
+    </ClInclude>
+    <ClInclude Include="Biquad1Q31_32x64.h">
+      <Filter>Header Files\Multiway</Filter>
+    </ClInclude>
+    <ClInclude Include="Biquad1Q31_64x64.h">
+      <Filter>Header Files\Multiway</Filter>
+    </ClInclude>
+    <ClInclude Include="FirstOrder1Double.h">
+      <Filter>Header Files\Multiway</Filter>
+    </ClInclude>
+    <ClInclude Include="FirstOrder1Q31.h">
+      <Filter>Header Files\Multiway</Filter>
+    </ClInclude>
+    <ClInclude Include="FirstOrder1Q31_32x64.h">
+      <Filter>Header Files\Multiway</Filter>
+    </ClInclude>
+    <ClInclude Include="StereoBiquad1Double.h">
+      <Filter>Header Files\Stereo</Filter>
+    </ClInclude>
+    <ClInclude Include="StereoBiquad1Q31.h">
+      <Filter>Header Files\Stereo</Filter>
+    </ClInclude>
+    <ClInclude Include="StereoBiquad1Q31_32x64.h">
+      <Filter>Header Files\Stereo</Filter>
+    </ClInclude>
+    <ClInclude Include="StereoBiquad1Q31_64x64.h">
+      <Filter>Header Files\Stereo</Filter>
+    </ClInclude>
+    <ClInclude Include="StereoFirstOrder1Double.h">
+      <Filter>Header Files\Stereo</Filter>
+    </ClInclude>
+    <ClInclude Include="StereoFirstOrder1Q31.h">
+      <Filter>Header Files\Stereo</Filter>
+    </ClInclude>
+    <ClInclude Include="StereoFirstOrder1Q31_32x64.h">
+      <Filter>Header Files\Stereo</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp">
@@ -89,43 +146,13 @@
     <ClCompile Include="Stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="BiquadDouble.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="IFilter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FirstOrderFilterDouble.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GainDouble.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="BiquadQ31.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Q31.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="BiquadQ31_32x64.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Q63.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="BiquadQ31_64x64.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GainQ31.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GainQ31_64x64.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FirstOrderFilterQ31.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FirstOrderFilterQ31_32x64.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FilterBank.cpp">
@@ -142,6 +169,75 @@
     </ClCompile>
     <ClCompile Include="SampleBlock.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="InstructionSet.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SampleConverter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BiquadCoefficients.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FirstOrderCoefficients.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="StereoBiquad1Double.cpp">
+      <Filter>Source Files\Stereo</Filter>
+    </ClCompile>
+    <ClCompile Include="StereoBiquad1Q31.cpp">
+      <Filter>Source Files\Stereo</Filter>
+    </ClCompile>
+    <ClCompile Include="StereoBiquad1Q31_32x64.cpp">
+      <Filter>Source Files\Stereo</Filter>
+    </ClCompile>
+    <ClCompile Include="StereoBiquad1Q31_64x64.cpp">
+      <Filter>Source Files\Stereo</Filter>
+    </ClCompile>
+    <ClCompile Include="StereoFirstOrder1Double.cpp">
+      <Filter>Source Files\Stereo</Filter>
+    </ClCompile>
+    <ClCompile Include="StereoFirstOrder1Q31.cpp">
+      <Filter>Source Files\Stereo</Filter>
+    </ClCompile>
+    <ClCompile Include="StereoFirstOrder1Q31_32x64.cpp">
+      <Filter>Source Files\Stereo</Filter>
+    </ClCompile>
+    <ClCompile Include="FirstOrder1Q31_32x64.cpp">
+      <Filter>Source Files\Multiway</Filter>
+    </ClCompile>
+    <ClCompile Include="FirstOrder1Q31.cpp">
+      <Filter>Source Files\Multiway</Filter>
+    </ClCompile>
+    <ClCompile Include="FirstOrder1Double.cpp">
+      <Filter>Source Files\Multiway</Filter>
+    </ClCompile>
+    <ClCompile Include="Biquad1Q31_64x64.cpp">
+      <Filter>Source Files\Multiway</Filter>
+    </ClCompile>
+    <ClCompile Include="Biquad1Q31_32x64.cpp">
+      <Filter>Source Files\Multiway</Filter>
+    </ClCompile>
+    <ClCompile Include="Biquad1Q31.cpp">
+      <Filter>Source Files\Multiway</Filter>
+    </ClCompile>
+    <ClCompile Include="Biquad1Double.cpp">
+      <Filter>Source Files\Multiway</Filter>
+    </ClCompile>
+    <ClCompile Include="Biquad1FirstOrder1Double.cpp">
+      <Filter>Source Files\HigherOrder</Filter>
+    </ClCompile>
+    <ClCompile Include="StereoBiquad1FirstOrder1Double.cpp">
+      <Filter>Source Files\HigherOrder</Filter>
+    </ClCompile>
+    <ClCompile Include="GainDouble.cpp">
+      <Filter>Source Files\Multiway</Filter>
+    </ClCompile>
+    <ClCompile Include="GainQ31.cpp">
+      <Filter>Source Files\Multiway</Filter>
+    </ClCompile>
+    <ClCompile Include="GainQ31_64x64.cpp">
+      <Filter>Source Files\Multiway</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

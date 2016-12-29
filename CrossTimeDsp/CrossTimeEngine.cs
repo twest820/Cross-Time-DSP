@@ -32,6 +32,12 @@ namespace CrossTimeDsp
             this.Stopping = false;
 
             MediaFoundationApi.Startup();
+
+            Filter firstReverseTimeFilter = this.Configuration.Filters.FirstOrDefault(filter => filter.TimeDirection == TimeDirection.Reverse);
+            if (firstReverseTimeFilter != null)
+            {
+                firstReverseTimeFilter.AdjustGain(this.Configuration.Engine.ReverseTimeAntiClippingAttenuationInDB);
+            }
         }
 
         public void Dispose()
@@ -79,20 +85,6 @@ namespace CrossTimeDsp
                 return;
             }
 
-            // do the filtering
-            StreamPerformance streamMetrics;
-            WaveStream outputStream = this.FilterStream(inputStream, out streamMetrics);
-
-            // encourage garbage collection of buffers (including any reverse time buffer allocated by FilterStream())
-            // If this isn't done it's likely processing large tracks will result in memory bloat as sampleBuffer is a long lived object and likely gets promoted 
-            // to an older generation, meaning FilterFile() can get invoked again before sampleBuffer gets collected.
-            GC.Collect();
-            if (this.Stopping)
-            {
-                // if the stop flag was set during filtering outputStream will be null
-                return;
-            }
-
             // ensure output directory exists so that output file write succeeds
             string outputDirectoryPath = Path.GetDirectoryName(outputFilePath);
             if (String.IsNullOrEmpty(outputDirectoryPath) == false && Directory.Exists(outputDirectoryPath) == false)
@@ -100,27 +92,38 @@ namespace CrossTimeDsp
                 Directory.CreateDirectory(outputDirectoryPath);
             }
 
-            // write output file
-            MediaType outputMediaType;
-            if (this.Configuration.Output.Encoding == Encoding.Wave)
+            StreamPerformance streamMetrics;
+            using (WaveStream outputStream = this.FilterStream(inputStream, out streamMetrics))
             {
-                // work around NAudio bug: MediaFoundationEncoder supports Wave files but GetOutputMediaTypes() fails on Wave
-                outputMediaType = new MediaType(outputStream.WaveFormat);
-            }
-            else
-            {
-                List<MediaType> outputMediaTypes = MediaFoundationEncoder.GetOutputMediaTypes(Constant.EncodingGuids[this.Configuration.Output.Encoding]).Where(mediaType => mediaType.BitsPerSample == outputStream.WaveFormat.BitsPerSample && mediaType.ChannelCount == outputStream.WaveFormat.Channels && mediaType.SampleRate == outputStream.WaveFormat.SampleRate).ToList();
-                if ((outputMediaTypes == null) || (outputMediaTypes.Count < 1))
+                // do the filtering
+                if (this.Stopping)
                 {
-                    this.log.ReportError("'{0}': no media type found for {1} bits per sample, {2} channels, at {3} kHz.", Path.GetFileName(inputFilePath), outputStream.WaveFormat.BitsPerSample, outputStream.WaveFormat.Channels, outputStream.WaveFormat.SampleRate);
+                    // if the stop flag was set during filtering outputStream will be null
                     return;
                 }
-                outputMediaType = outputMediaTypes[0];
+
+                // write output file
+                MediaType outputMediaType;
+                if (this.Configuration.Output.Encoding == Encoding.Wave)
+                {
+                    // work around NAudio bug: MediaFoundationEncoder supports Wave files but GetOutputMediaTypes() fails on Wave
+                    outputMediaType = new MediaType(outputStream.WaveFormat);
+                }
+                else
+                {
+                    List<MediaType> outputMediaTypes = MediaFoundationEncoder.GetOutputMediaTypes(Constant.EncodingGuids[this.Configuration.Output.Encoding]).Where(mediaType => mediaType.BitsPerSample == outputStream.WaveFormat.BitsPerSample && mediaType.ChannelCount == outputStream.WaveFormat.Channels && mediaType.SampleRate == outputStream.WaveFormat.SampleRate).ToList();
+                    if ((outputMediaTypes == null) || (outputMediaTypes.Count < 1))
+                    {
+                        this.log.ReportError("'{0}': no media type found for {1} bits per sample, {2} channels, at {3} kHz.", Path.GetFileName(inputFilePath), outputStream.WaveFormat.BitsPerSample, outputStream.WaveFormat.Channels, outputStream.WaveFormat.SampleRate);
+                        return;
+                    }
+                    outputMediaType = outputMediaTypes[0];
+                }
+                MediaFoundationEncoder outputEncoder = new MediaFoundationEncoder(outputMediaType);
+                streamMetrics.EncodingStartedUtc = DateTime.UtcNow;
+                outputEncoder.Encode(outputFilePath, outputStream);
+                streamMetrics.EncodingStoppedUtc = DateTime.UtcNow;
             }
-            MediaFoundationEncoder outputEncoder = new MediaFoundationEncoder(outputMediaType);
-            DateTime encodingStartedUtc = DateTime.UtcNow;
-            outputEncoder.Encode(outputFilePath, outputStream);
-            DateTime encodingStoppedUtc = DateTime.UtcNow;
 
             // copy metadata
             Tag inputMetadata;
@@ -144,7 +147,7 @@ namespace CrossTimeDsp
             }
 
             DateTime processingStoppedUtc = DateTime.UtcNow;
-            TimeSpan encodingTime = encodingStoppedUtc - encodingStartedUtc;
+            TimeSpan encodingTime = streamMetrics.EncodingStoppedUtc - streamMetrics.EncodingStartedUtc;
             TimeSpan processingTime = processingStoppedUtc - processingStartedUtc;
             if (streamMetrics.HasReverseTime)
             {
@@ -205,34 +208,20 @@ namespace CrossTimeDsp
             performance = new StreamPerformance();
 
             // populate filters
-            FilterBank forwardTimeFilters = new FilterBank(this.Configuration.Engine.Precision, this.Configuration.Engine.Q31Adaptive.Q31_32x64_Threshold, this.Configuration.Engine.Q31Adaptive.Q31_64x64_Threshold);
-            FilterBank reverseTimeFilters = new FilterBank(this.Configuration.Engine.Precision, this.Configuration.Engine.Q31Adaptive.Q31_32x64_Threshold, this.Configuration.Engine.Q31Adaptive.Q31_64x64_Threshold);
-
-            reverseTimeFilters.AddGain(this.Configuration.Engine.ReverseTimeAntiClippingAttenuationInDB);
-
-            foreach (FilterElement filter in this.Configuration.Filters.Filters)
+            FilterBank forwardTimeFilters = new FilterBank(this.Configuration.Engine.Precision, inputStream.WaveFormat.SampleRate, inputStream.WaveFormat.Channels, this.Configuration.Engine.Q31Adaptive.Q31_32x64_Threshold, this.Configuration.Engine.Q31Adaptive.Q31_64x64_Threshold);
+            FilterBank reverseTimeFilters = new FilterBank(this.Configuration.Engine.Precision, inputStream.WaveFormat.SampleRate, inputStream.WaveFormat.Channels, this.Configuration.Engine.Q31Adaptive.Q31_32x64_Threshold, this.Configuration.Engine.Q31Adaptive.Q31_64x64_Threshold);
+            foreach (Filter filter in this.Configuration.Filters)
             {
-                FilterBank filters;
                 switch (filter.TimeDirection)
                 {
                     case TimeDirection.Forward:
-                        filters = forwardTimeFilters;
+                        filter.AddTo(forwardTimeFilters);
                         break;
                     case TimeDirection.Reverse:
-                        filters = reverseTimeFilters;
+                        filter.AddTo(reverseTimeFilters);
                         break;
                     default:
                         throw new NotSupportedException(String.Format("Unhandled time direction {0}.", filter.TimeDirection));
-                }
-
-                if (filter is BiquadElement)
-                {
-                    BiquadElement biquad = (BiquadElement)filter;
-                    filters.AddBiquad(biquad.Type, inputStream.WaveFormat.SampleRate, biquad.F0, biquad.GainInDB, biquad.Q, inputStream.WaveFormat.Channels);
-                }
-                else
-                {
-                    filters.AddFirstOrderFilter(filter.Type, inputStream.WaveFormat.SampleRate, filter.F0, inputStream.WaveFormat.Channels);
                 }
             }
 
@@ -241,65 +230,82 @@ namespace CrossTimeDsp
             SampleType dataPathSampleType = this.Configuration.Engine.Precision == FilterPrecision.Double ? SampleType.Double : SampleType.Int32;
             bool hasForwardTimeFilters = forwardTimeFilters.FilterCount > 0;
             SampleType outputSampleType = SampleTypeExtensions.FromBitsPerSample(this.Configuration.Output.BitsPerSample);
-            if (reverseTimeFilters.FilterCount > 1)
+            if (reverseTimeFilters.FilterCount > 0 && (this.Stopping == false))
             {
-                SampleBuffer inputBuffer = new SampleBuffer(inputStream);
-                performance.ReverseBufferCompleteUtc = DateTime.UtcNow;
-
-                SampleType reverseTimeSampleType = hasForwardTimeFilters ? dataPathSampleType : outputSampleType;
-                SampleBuffer reverseTimeBuffer = new SampleBuffer(inputStream.WaveFormat.SampleRate, reverseTimeSampleType.BitsPerSample(), inputStream.WaveFormat.Channels);
-                // blocks are removed from the input buffer as they're processed to limit memory consumption
-                for (LinkedListNode<SampleBlock> blockNode = inputBuffer.Blocks.Last; blockNode != null; blockNode = blockNode.Previous, inputBuffer.Blocks.RemoveLast())
+                using (SampleBuffer inputBuffer = new SampleBuffer(inputStream))
                 {
-                    SampleBlock block = blockNode.Value;
-                    SampleBlock filteredBlock = reverseTimeFilters.FilterReverse(block, dataPathSampleType, reverseTimeSampleType);
-                    reverseTimeBuffer.Blocks.AddFirst(filteredBlock);
+                    // set up buffer for output of reverse time pass and dispose input stream as it's no longer needed
+                    performance.ReverseBufferCompleteUtc = DateTime.UtcNow;
+                    SampleType reverseTimeSampleType = hasForwardTimeFilters ? dataPathSampleType : outputSampleType;
+                    SampleBuffer reverseTimeBuffer = new SampleBuffer(inputStream.WaveFormat.SampleRate, reverseTimeSampleType.BitsPerSample(), inputStream.WaveFormat.Channels);
+                    inputStream.Dispose();
 
-                    if (this.Stopping)
+                    // input blocks are disposed as they're processed to limit peak memory consumption (and removed from the input buffer for completeness)
+                    SampleBlock recirculatingDataPathBlock = null;
+                    for (LinkedListNode<SampleBlock> blockNode = inputBuffer.Blocks.Last; blockNode != null; blockNode = blockNode.Previous, inputBuffer.Blocks.RemoveLast())
                     {
-                        return null;
-                    }
-                }
-
-                // apply forward time pass to output of reverse time pass
-                reverseTimeBuffer.RecalculateBlocks();
-                inputStream = reverseTimeBuffer;
-                performance.ReverseTimeCompleteUtc = DateTime.UtcNow;
-            }
-
-            // do forward time pass
-            if (hasForwardTimeFilters)
-            {
-                SampleBuffer outputStream = new SampleBuffer(inputStream.WaveFormat.SampleRate, outputSampleType.BitsPerSample(), inputStream.WaveFormat.Channels);
-                if (inputStream is SampleBuffer)
-                {
-                    SampleBuffer inputBlocks = (SampleBuffer)inputStream;
-                    for (LinkedListNode<SampleBlock> blockNode = inputBlocks.Blocks.First; blockNode != null; blockNode = blockNode.Next)
-                    {
-                        SampleBlock filteredBlock = forwardTimeFilters.Filter(blockNode.Value, dataPathSampleType, outputSampleType);
-                        outputStream.Blocks.AddLast(filteredBlock);
-                        inputBlocks.Blocks.RemoveFirst();
+                        using (SampleBlock block = blockNode.Value)
+                        {
+                            SampleBlock filteredBlock = reverseTimeFilters.FilterReverse(block, dataPathSampleType, reverseTimeSampleType, ref recirculatingDataPathBlock);
+                            reverseTimeBuffer.Blocks.AddFirst(filteredBlock);
+                        }
 
                         if (this.Stopping)
                         {
-                            return null;
+                            break;
+                        }
+                    }
+                    if (recirculatingDataPathBlock != null)
+                    {
+                        recirculatingDataPathBlock.Dispose();
+                    }
+
+                    // prepare to apply forward time pass to output of reverse time pass or just to write output
+                    reverseTimeBuffer.RecalculateBlocks();
+                    inputStream = reverseTimeBuffer;
+                    performance.ReverseTimeCompleteUtc = DateTime.UtcNow;
+                }
+            }
+
+            // do forward time pass
+            if (hasForwardTimeFilters && (this.Stopping == false))
+            {
+                SampleBuffer outputStream = new SampleBuffer(inputStream.WaveFormat.SampleRate, outputSampleType.BitsPerSample(), inputStream.WaveFormat.Channels);
+                SampleBlock recirculatingDataPathBlock = null;
+                if (inputStream is SampleBuffer)
+                {
+                    SampleBuffer inputBlocks = (SampleBuffer)inputStream;
+                    for (LinkedListNode<SampleBlock> blockNode = inputBlocks.Blocks.First; blockNode != null; blockNode = blockNode.Next, inputBlocks.Blocks.RemoveFirst())
+                    {
+                        using (SampleBlock block = blockNode.Value)
+                        {
+                            SampleBlock filteredBlock = forwardTimeFilters.Filter(block, dataPathSampleType, outputSampleType, ref recirculatingDataPathBlock);
+                            outputStream.Blocks.AddLast(filteredBlock);
+                        }
+
+                        if (this.Stopping)
+                        {
+                            break;
                         }
                     }
                 }
                 else
                 {
-                    SampleBlock block = new SampleBlock(Constant.SampleBlockSizeInBytes, SampleTypeExtensions.FromBitsPerSample(inputStream.WaveFormat.BitsPerSample));
+                    byte[] inputBuffer = new byte[Constant.SampleBlockSizeInBytes];
                     while (inputStream.CanRead)
                     {
-                        block.BytesInUse = inputStream.Read(block.ByteBuffer, 0, block.MaximumSizeInBytes);
-                        if (block.BytesInUse < 1)
+                        int bytesRead = inputStream.Read(inputBuffer, 0, inputBuffer.Length);
+                        if (bytesRead < 1)
                         {
                             // workaround for NAudio bug: WaveStream.CanRead is hard coded to true regardless of position
                             break;
                         }
 
-                        SampleBlock filteredBlock = forwardTimeFilters.Filter(block, dataPathSampleType, outputSampleType);
-                        outputStream.Blocks.AddLast(filteredBlock);
+                        using (SampleBlock block = new SampleBlock(inputBuffer, bytesRead, SampleTypeExtensions.FromBitsPerSample(inputStream.WaveFormat.BitsPerSample)))
+                        {
+                            SampleBlock filteredBlock = forwardTimeFilters.Filter(block, dataPathSampleType, outputSampleType, ref recirculatingDataPathBlock);
+                            outputStream.Blocks.AddLast(filteredBlock);
+                        }
 
                         if (this.Stopping)
                         {
@@ -307,10 +313,19 @@ namespace CrossTimeDsp
                         }
                     }
                 }
+                if (recirculatingDataPathBlock != null)
+                {
+                    recirculatingDataPathBlock.Dispose();
+                }
 
+                // release input stream as it's no longer needed and complete output
+                inputStream.Dispose();
                 outputStream.RecalculateBlocks();
                 inputStream = outputStream;
             }
+
+            forwardTimeFilters.Dispose();
+            reverseTimeFilters.Dispose();
 
             performance.CompleteTimeUtc = DateTime.UtcNow;
             return inputStream;

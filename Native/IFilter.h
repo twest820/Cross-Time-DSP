@@ -6,6 +6,8 @@ namespace CrossTimeDsp::Dsp
 	private class IFilter
 	{
 	public:
+		virtual ~IFilter() {}
+
 		/// <summary>Process the samples from block[offset] to block[offset + Constant.FilterBlockSizeInTSamples].</summary>
 		/// <remarks>Processing portions of a <see cref="SampleBlock"/> <see cref="Constant.FilterBlockSizeInBytes"/> bytes at a time amortizes the cost of
 		/// the virtual function call to Filter() and offers the compiler a constant set of loop bounds to optimize against.  With good choice of filter

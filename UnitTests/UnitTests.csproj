@@ -91,7 +91,19 @@
     <Compile Include="TestConstant.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="UnitTestConfig.xml">
+    <Content Include="LinearizeDouble.xml">
+      <SubType>Designer</SubType>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="BiquadFirstOrderQ31.xml">
+      <SubType>Designer</SubType>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="ThirdOrderDouble.xml">
+      <SubType>Designer</SubType>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="BiquadFirstOrderDouble.xml">
       <SubType>Designer</SubType>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

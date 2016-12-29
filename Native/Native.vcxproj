@@ -110,6 +110,7 @@
       <AdditionalOptions>/std:c++latest %(AdditionalOptions)</AdditionalOptions>
       <EnableEnhancedInstructionSet>
       </EnableEnhancedInstructionSet>
+      <DisableSpecificWarnings>4752;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
@@ -130,13 +131,15 @@
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <AdditionalOptions>/std:c++latest %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/std:c++latest /Zo %(AdditionalOptions)</AdditionalOptions>
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>Default</InlineFunctionExpansion>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
       <EnableEnhancedInstructionSet>
       </EnableEnhancedInstructionSet>
+      <DisableSpecificWarnings>4752;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
@@ -148,48 +151,65 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BiquadDouble.h" />
-    <ClInclude Include="BiquadQ31.h" />
-    <ClInclude Include="BiquadQ31_32x64.h" />
-    <ClInclude Include="BiquadQ31_64x64.h" />
+    <ClInclude Include="BiquadCoefficients.h" />
+    <ClInclude Include="Biquad1Double.h" />
+    <ClInclude Include="Biquad1Q31.h" />
+    <ClInclude Include="Biquad1Q31_32x64.h" />
+    <ClInclude Include="Biquad1Q31_64x64.h" />
     <ClInclude Include="Constant.h" />
     <ClInclude Include="FilterBank.h" />
     <ClInclude Include="FilterPrecision.h" />
     <ClInclude Include="FilterType.h" />
-    <ClInclude Include="FirstOrderFilterDouble.h" />
-    <ClInclude Include="FirstOrderFilterQ31.h" />
-    <ClInclude Include="FirstOrderFilterQ31_32x64.h" />
+    <ClInclude Include="FirstOrderCoefficients.h" />
+    <ClInclude Include="FirstOrder1Double.h" />
+    <ClInclude Include="FirstOrder1Q31.h" />
+    <ClInclude Include="FirstOrder1Q31_32x64.h" />
     <ClInclude Include="GainDouble.h" />
     <ClInclude Include="GainQ31.h" />
     <ClInclude Include="GainQ31_64x64.h" />
     <ClInclude Include="IFilter.h" />
+    <ClInclude Include="InstructionSet.h" />
     <ClInclude Include="Q31.h" />
     <ClInclude Include="Q63.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="resource1.h" />
     <ClInclude Include="SampleBlock.h" />
+    <ClInclude Include="SampleConverter.h" />
     <ClInclude Include="SampleType.h" />
     <ClInclude Include="Stdafx.h" />
+    <ClInclude Include="StereoBiquad1Double.h" />
+    <ClInclude Include="StereoBiquad1Q31.h" />
+    <ClInclude Include="StereoBiquad1Q31_32x64.h" />
+    <ClInclude Include="StereoBiquad1Q31_64x64.h" />
+    <ClInclude Include="StereoFirstOrder1Double.h" />
+    <ClInclude Include="StereoFirstOrder1Q31.h" />
+    <ClInclude Include="StereoFirstOrder1Q31_32x64.h" />
+    <ClInclude Include="StereoBiquad1FirstOrder1Double.h" />
+    <ClInclude Include="Biquad1FirstOrder1Double.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp" />
-    <ClCompile Include="BiquadDouble.cpp" />
-    <ClCompile Include="BiquadQ31.cpp" />
-    <ClCompile Include="BiquadQ31_32x64.cpp" />
-    <ClCompile Include="BiquadQ31_64x64.cpp" />
+    <ClCompile Include="BiquadCoefficients.cpp" />
+    <ClCompile Include="Biquad1Double.cpp" />
+    <ClCompile Include="Biquad1Q31.cpp" />
+    <ClCompile Include="Biquad1Q31_32x64.cpp" />
+    <ClCompile Include="Biquad1Q31_64x64.cpp" />
     <ClCompile Include="FilterBank.cpp" />
     <ClCompile Include="FilterPrecision.cpp" />
     <ClCompile Include="FilterType.cpp" />
-    <ClCompile Include="FirstOrderFilterDouble.cpp" />
-    <ClCompile Include="FirstOrderFilterQ31.cpp" />
-    <ClCompile Include="FirstOrderFilterQ31_32x64.cpp" />
+    <ClCompile Include="FirstOrderCoefficients.cpp" />
+    <ClCompile Include="FirstOrder1Double.cpp" />
+    <ClCompile Include="FirstOrder1Q31.cpp" />
+    <ClCompile Include="FirstOrder1Q31_32x64.cpp" />
     <ClCompile Include="GainDouble.cpp" />
     <ClCompile Include="GainQ31.cpp" />
     <ClCompile Include="GainQ31_64x64.cpp" />
     <ClCompile Include="IFilter.cpp" />
+    <ClCompile Include="InstructionSet.cpp" />
     <ClCompile Include="Q31.cpp" />
     <ClCompile Include="Q63.cpp" />
     <ClCompile Include="SampleBlock.cpp" />
+    <ClCompile Include="SampleConverter.cpp" />
     <ClCompile Include="SampleType.cpp" />
     <ClCompile Include="Stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -197,6 +217,15 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="StereoBiquad1Double.cpp" />
+    <ClCompile Include="StereoBiquad1Q31.cpp" />
+    <ClCompile Include="StereoBiquad1Q31_32x64.cpp" />
+    <ClCompile Include="StereoBiquad1Q31_64x64.cpp" />
+    <ClCompile Include="StereoFirstOrder1Double.cpp" />
+    <ClCompile Include="StereoFirstOrder1Q31.cpp" />
+    <ClCompile Include="StereoFirstOrder1Q31_32x64.cpp" />
+    <ClCompile Include="StereoBiquad1FirstOrder1Double.cpp" />
+    <ClCompile Include="Biquad1FirstOrder1Double.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Native.rc" />

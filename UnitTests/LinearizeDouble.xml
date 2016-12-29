@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<crossTimeDsp>
+  <engine precision="Double" reverseTimeAntiClippingAttenuationInDB="-10">
+    <q31Adaptive q31_32x64_Threshold="0.02" q31_64x64_Threshold="0.002"/>
+  </engine>
+  <filters>
+    <linearizeThreeWay lowCrossover="200" highCrossover="1700" wooferRolloff="40" midRolloff="150"/>
+  </filters>
+  <output encoding="Wave" bitsPerSample="24">
+    <collidingFileNamePostfix> - Cross Time DSP</collidingFileNamePostfix>
+  </output>
+</crossTimeDsp>

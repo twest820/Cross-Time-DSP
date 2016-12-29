@@ -3,6 +3,7 @@ using NAudio.MediaFoundation;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CrossTimeDsp
 {
@@ -11,8 +12,8 @@ namespace CrossTimeDsp
         public const string ElapsedTimeFormat = @"mm\:ss\.fff";
 
         // must be a multiple of 12 bytes so an exact number of 16, 24, and 32 bit samples fit in the block, multiples of 24 preferred for stereo
-        // must be a multiple of NativeDsp.Constant.FilterBlockSizeInBytes
-        // Mesurements come in fastest with matching filter and sample block sizes around 36k
+        // Must be a multiple of Dsp::Constant::FilterBlockSizeInBytes.
+        // Mesurements typically come in fastest with sample block sizes no larger than 36k.
         public const int SampleBlockSizeInBytes = 36 * 1024;
 
         public static readonly ReadOnlyDictionary<Encoding, Guid> EncodingGuids;
@@ -31,6 +32,39 @@ namespace CrossTimeDsp
                 { Encoding.WindowsMediaAudioLossless, AudioSubtypes.MFAudioFormat_WMAudio_Lossless }
             });
             Constant.PowerShellMessagePollInterval = TimeSpan.FromMilliseconds(250);
+        }
+
+        public static class Configuration
+        {
+            public const string Biquad = "biquad";
+            public const string BitsPerSample = "bitsPerSample";
+            public const string CollidingFileNamePostfix = "collidingFileNamePostfix";
+            public const string CrossTimeDsp = "crossTimeDsp";
+            public const string Encoding = "encoding";
+            public const string Engine = "engine";
+            public const string F0 = "f0";
+            public const string F1 = "f1";
+            public const string Filters = "filters";
+            public const string FirstOrder = "firstOrder";
+            public const string GainInDB = "gainInDB";
+            public const string HighCrossover = "highCrossover";
+            public const string LinearizeThreeWay = "linearizeThreeWay";
+            public const string LowCrossover = "lowCrossover";
+            public const string MidRolloff = "midRolloff";
+            public const string Output = "output";
+            public const string Precision = "precision";
+            public const string Q = "q";
+            [SuppressMessage("StyleCop.CSharp.NamingRules", "SA1310:FieldNamesMustNotContainUnderscore", Justification = "Casing.")]
+            public const string Q31_32x64_Threshold = "q31_32x64_Threshold";
+            [SuppressMessage("StyleCop.CSharp.NamingRules", "SA1310:FieldNamesMustNotContainUnderscore", Justification = "Casing.")]
+            public const string Q31_64x64_Threshold = "q31_64x64_Threshold";
+            public const string Q31Adaptive = "q31Adaptive";
+            public const string ReverseTimeAntiClippingAttenuationInDB = "reverseTimeAntiClippingAttenuationInDB";
+            public const string ThirdOrder = "thirdOrder";
+            public const string TimeDirection = "timeDirection";
+            public const string Type = "type";
+            public const string Wav = "wav";
+            public const string WooferRolloff = "wooferRolloff";
         }
 
         public static class Extension

@@ -13,6 +13,8 @@ x64/
 **/StyleCop.Cache
 
 # Profiling results
+*.psess
+*.VC.db
 *.vsp
 *.vspx
 

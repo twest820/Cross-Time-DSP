@@ -1,66 +1,116 @@
 #include "stdafx.h"
-#include "BiquadDouble.h"
-#include "BiquadQ31.h"
-#include "BiquadQ31_32x64.h"
-#include "BiquadQ31_64x64.h"
+#include <algorithm>
+#include "Biquad1Double.h"
+#include "Biquad1Q31.h"
+#include "Biquad1Q31_32x64.h"
+#include "Biquad1Q31_64x64.h"
 #include "Constant.h"
 #include "FilterBank.h"
-#include "FirstOrderFilterDouble.h"
-#include "FirstOrderFilterQ31.h"
-#include "FirstOrderFilterQ31_32x64.h"
+#include "FirstOrder1Double.h"
+#include "FirstOrder1Q31.h"
+#include "FirstOrder1Q31_32x64.h"
 #include "GainDouble.h"
 #include "GainQ31.h"
 #include "GainQ31_64x64.h"
+#include "InstructionSet.h"
+#include "StereoBiquad1Double.h"
+#include "StereoBiquad1Q31.h"
+#include "StereoBiquad1Q31_32x64.h"
+#include "StereoBiquad1Q31_64x64.h"
+#include "StereoFirstOrder1Double.h"
+#include "StereoBiquad1Q31.h"
+#include "StereoFirstOrder1Q31.h"
+#include "StereoFirstOrder1Q31_32x64.h"
+#include "StereoBiquad1FirstOrder1Double.h"
+#include "Biquad1FirstOrder1Double.h"
 
 using namespace System;
+using namespace System::Diagnostics;
 
 namespace CrossTimeDsp::Dsp
 {
-	FilterBank::FilterBank(FilterPrecision precision, double q31_32x64_Threshold, double q31_64x64_Threshold)
+	FilterBank::FilterBank(FilterPrecision precision, __int32 fs, __int32 channels, double q31_32x64_Threshold, double q31_64x64_Threshold)
 	{
+		if (InstructionSet::Sse41() == false)
+		{
+			throw gcnew NotSupportedException("Sorry, Cross Time DSP requires SSE4.1.  Please try on a newer machine (2008 or later is probably sufficient) or use Cross Time DSP 0.5.0.0.");
+		}
+		if (fs < 1)
+		{
+			throw gcnew ArgumentOutOfRangeException("fs", "Sampling rate must be greater than zero.");
+		}
+		if (channels < 1)
+		{
+			throw gcnew ArgumentOutOfRangeException("channels", "There must be at least one channel.");
+		}
+		if (q31_32x64_Threshold <= 0.0)
+		{
+			throw gcnew ArgumentOutOfRangeException("q31_32x64_Threshold", "32x64 threshold must be greater than zero.");
+		}
+		if (q31_64x64_Threshold <= 0.0)
+		{
+			throw gcnew ArgumentOutOfRangeException("q31_32x64_Threshold", "64x64 threshold must be greater than zero.");
+		}
+
+		this->channels = channels;
+		this->filterTime = 0;
 		this->doubleFilters = new std::vector<IFilter<double>*>();
 		this->intFilters = new std::vector<IFilter<__int32>*>();
+		this->fs = fs;
 		this->precision = precision;
 		this->q31_32x64_Threshold = q31_32x64_Threshold;
 		this->q31_64x64_Threshold = q31_64x64_Threshold;
+		this->timingAvailable = false;
+		this->toDataPathTime = 0;
+		this->toOutputTime = 0;
+	#ifdef FILTER_BANK_INTERNAL_TIMING
+		this->timingAvailable = true;
+	#endif
+	}
+
+	FilterBank::!FilterBank()
+	{
+		for (__int32 filter = 0; filter < this->doubleFilters->size(); ++filter)
+		{
+			delete this->doubleFilters->at(filter);
+		}
+		delete this->doubleFilters;
+		this->doubleFilters = nullptr;
+
+		for (__int32 filter = 0; filter < this->intFilters->size(); ++filter)
+		{
+			delete this->intFilters->at(filter);
+		}
+		delete this->intFilters;
+		this->intFilters = nullptr;
 	}
 
 	FilterBank::~FilterBank()
 	{
-		for each (IFilter<double>* filter in *(this->doubleFilters))
-		{
-			delete filter;
-		}
-		delete this->doubleFilters;
-
-		for each (IFilter<__int32>* filter in *(this->intFilters))
-		{
-			delete filter;
-		}
-		delete this->intFilters;
+		FilterBank::!FilterBank();
 	}
 
-	void FilterBank::AddBiquad(FilterType type, __int32 fs, double f0, double gainInDB, double q, __int32 channels)
+	void FilterBank::AddBiquad(FilterType type, double f0, double q, double gainInDB)
 	{
 		if (this->precision == FilterPrecision::Double)
 		{
-			this->doubleFilters->push_back(this->CreateBiquad<double>(type, fs, f0, gainInDB, q, channels));
+			this->doubleFilters->push_back(this->CreateBiquad<double>(type, f0, q, gainInDB));
 		}
 		else
 		{
-			this->intFilters->push_back(this->CreateBiquad<__int32>(type, fs, f0, gainInDB, q, channels));
+			this->intFilters->push_back(this->CreateBiquad<__int32>(type, f0, q, gainInDB));
 		}
 	}
 
-	void FilterBank::AddFirstOrderFilter(FilterType type, __int32 fs, double f0, __int32 channels)
+	void FilterBank::AddFirstOrder(FilterType type, double f0, double gainInDB)
 	{
 		if (this->precision == FilterPrecision::Double)
 		{
-			this->doubleFilters->push_back(this->CreateFirstOrder<double>(type, fs, f0, channels));
+			this->doubleFilters->push_back(this->CreateFirstOrder<double>(type, f0, gainInDB));
 		}
 		else
 		{
-			this->intFilters->push_back(this->CreateFirstOrder<__int32>(type, fs, f0, channels));
+			this->intFilters->push_back(this->CreateFirstOrder<__int32>(type, f0, gainInDB));
 		}
 	}
 
@@ -76,107 +126,133 @@ namespace CrossTimeDsp::Dsp
 		}
 	}
 
-	template <typename TSample>	IFilter<TSample>* FilterBank::CreateAllpassBiquad(double w0, double alpha, FilterPrecision precision, __int32 channels)
+	void FilterBank::AddThirdOrder(FilterType biquadType, double biquadF0, double biquadQ, double biquadGainInDB, FilterType firstOrderType, double firstOrderF0, double firstOrderGainInDB)
 	{
-		double b0 = 1.0 - alpha;
-		double b1 = -2.0 * Math::Cos(w0);
-		double b2 = 1.0 + alpha;
-		double a0 = 1.0 + alpha;
-		double a1 = -2.0 * Math::Cos(w0);
-		double a2 = 1.0 - alpha;
-		return this->CreateBiquad<TSample>(b0, b1, b2, a0, a1, a2, precision, channels);
-	}
-
-	template <typename TSample>	IFilter<TSample>* FilterBank::CreateAllpassFirstOrder(double w0, FilterPrecision precision, __int32 channels)
-	{
-		double c = (Math::Tan(w0 / 2.0) - 1.0) / (Math::Tan(w0 / 2.0) + 1.0);
-		double b0 = c;
-		double b1 = 1.0;
-		double a0 = 1.0;
-		double a1 = c;
-		return this->CreateFirstOrder<TSample>(b0, b1, a0, a1, precision, channels);
-	}
-
-	template <typename TSample>	IFilter<TSample>* FilterBank::CreateBandpass(double w0, double alpha, FilterPrecision precision, __int32 channels)
-	{
-		double b0 = alpha;
-		double b1 = 0.0;
-		double b2 = -alpha;
-		double a0 = 1.0 + alpha;
-		double a1 = -2.0 * Math::Cos(w0);
-		double a2 = 1.0 - alpha;
-		return this->CreateBiquad<TSample>(b0, b1, b2, a0, a1, a2, precision, channels);
-	}
-
-	template <typename TSample>	IFilter<TSample>* FilterBank::CreateBiquad(FilterType type, __int32 fs, double f0, double gainInDB, double q, __int32 channels)
-	{
-		FilterPrecision precision = this->MaybeResolveAdaptiveFilterPrecision(fs, f0);
-		double w0 = this->GetW0(fs, f0);
-		double alpha = this->GetAlpha(w0, q);
-		switch (type)
+		if (this->precision == FilterPrecision::Double)
 		{
-		case FilterType::Allpass:
-			return this->CreateAllpassBiquad<TSample>(w0, alpha, precision, channels);
-		case FilterType::Bandpass:
-			return this->CreateBandpass<TSample>(w0, alpha, precision, channels);
-		case FilterType::Highpass:
-			return this->CreateHighpassBiquad<TSample>(w0, alpha, precision, channels);
-		case FilterType::HighShelf:
-			return this->CreateHighShelf<TSample>(w0, alpha, gainInDB, precision, channels);
-		case FilterType::Lowpass:
-			return this->CreateLowpassBiquad<TSample>(w0, alpha, precision, channels);
-		case FilterType::LowShelf:
-			return this->CreateLowShelf<TSample>(w0, alpha, gainInDB, precision, channels);
-		case FilterType::Notch:
-			return this->CreateNotch<TSample>(w0, alpha, precision, channels);
-		case FilterType::Peaking:
-			return this->CreatePeaking<TSample>(w0, alpha, gainInDB, precision, channels);
-		default:
-			throw gcnew NotSupportedException(String::Format("Unhandled filter type {0}.", type));
+			this->doubleFilters->push_back(this->CreateThirdOrder<double>(biquadType, biquadF0, biquadQ, biquadGainInDB, firstOrderType, firstOrderF0, firstOrderGainInDB));
+		}
+		else
+		{
+			this->intFilters->push_back(this->CreateThirdOrder<__int32>(biquadType, biquadF0, biquadQ, biquadGainInDB, firstOrderType, firstOrderF0, firstOrderGainInDB));
 		}
 	}
 
-	template <typename TSample> IFilter<TSample>* FilterBank::CreateBiquad(double b0, double b1, double b2, double a0, double a1, double a2, FilterPrecision precision, __int32 channels)
+	void FilterBank::AddThreeWayLinearization(double lowCrossover, double highCrossover, double wooferRolloff, double midRolloff, double gainInDB)
 	{
+		if (this->precision == FilterPrecision::Double)
+		{
+			std::vector<IFilter<double>*> filters = this->CreateThreeWayLinearization<double>(lowCrossover, highCrossover, wooferRolloff, midRolloff, gainInDB);
+			for (__int32 filter = 0; filter < filters.size(); ++filter)
+			{
+				this->doubleFilters->push_back(filters.at(filter));
+			}
+		}
+		else
+		{
+			std::vector<IFilter<__int32>*> filters = this->CreateThreeWayLinearization<__int32>(lowCrossover, highCrossover, wooferRolloff, midRolloff, gainInDB);
+			for (__int32 filter = 0; filter < filters.size(); ++filter)
+			{
+				this->intFilters->push_back(filters.at(filter));
+			}
+		}
+	}
+
+	SampleBlock^ FilterBank::ConvertOrRecirculateBlock(SampleBlock^ block, SampleType sampleType, SampleBlock^% recirculatingBlock)
+	{
+		if (block->SampleType == sampleType)
+		{
+			return block;
+		}
+
+		if (recirculatingBlock == nullptr)
+		{
+			// allocate data path block if no block is available
+			return block->ConvertTo(sampleType);
+		}
+		if (recirculatingBlock->MaximumSizeInBytes < block->BytesPerSample(sampleType) * block->SamplesInUse)
+		{
+			// reallocate data path block if it's too small (typically this happens after the last block of a buffer is processed as the 
+			// first block in a reverse time pass)
+			delete recirculatingBlock;
+			return block->ConvertTo(sampleType);
+		}
+
+		// reuse data path block
+		block->ConvertTo(recirculatingBlock);
+		return recirculatingBlock;
+	}
+
+	template <typename TSample>	IFilter<TSample>* FilterBank::CreateBiquad(FilterType type, double f0, double q, double gainInDB)
+	{
+		double w0 = this->GetW0(f0);
+		double alpha = this->GetAlpha(w0, q);
+		BiquadCoefficients coefficients = BiquadCoefficients::Create(type, w0, alpha, gainInDB);
+
+		FilterPrecision precision = this->MaybeResolveAdaptiveFilterPrecision(f0);
+		if (this->channels == 2 && Constant::StereoOptimizationEnabled)
+		{
+			switch (precision)
+			{
+			case FilterPrecision::Double:
+				return (IFilter<TSample>*)new StereoBiquad1Double(coefficients);
+			case FilterPrecision::Q31:
+				return (IFilter<TSample>*)new StereoBiquad1Q31(coefficients);
+			case FilterPrecision::Q31_32x64:
+				return (IFilter<TSample>*)new StereoBiquad1Q31_32x64(coefficients);
+			case FilterPrecision::Q31_64x64:
+				return (IFilter<TSample>*)new StereoBiquad1Q31_64x64(coefficients);
+			default:
+				throw gcnew NotSupportedException(String::Format("Unhandled filter precision {0}.", precision));
+			}
+		}
+
 		switch (precision)
 		{
 		case FilterPrecision::Double:
-			return (IFilter<TSample>*)new BiquadDouble(b0, b1, b2, a0, a1, a2, channels);
+			return (IFilter<TSample>*)new Biquad1Double(coefficients, this->channels);
 		case FilterPrecision::Q31:
-			return (IFilter<TSample>*)new BiquadQ31(b0, b1, b2, a0, a1, a2, channels);
+			return (IFilter<TSample>*)new Biquad1Q31(coefficients, this->channels);
 		case FilterPrecision::Q31_32x64:
-			return (IFilter<TSample>*)new BiquadQ31_32x64(b0, b1, b2, a0, a1, a2, channels);
+			return (IFilter<TSample>*)new Biquad1Q31_32x64(coefficients, this->channels);
 		case FilterPrecision::Q31_64x64:
-			return (IFilter<TSample>*)new BiquadQ31_64x64(b0, b1, b2, a0, a1, a2, channels);
+			return (IFilter<TSample>*)new Biquad1Q31_64x64(coefficients, this->channels);
 		default:
 			throw gcnew NotSupportedException(String::Format("Unhandled filter precision {0}.", precision));
 		}
 	}
 
-	template <typename TSample>	IFilter<TSample>* FilterBank::CreateFirstOrder(FilterType type, __int32 fs, double f0, __int32 channels)
+	template <typename TSample>	IFilter<TSample>* FilterBank::CreateFirstOrder(FilterType type, double f0, double gainInDB)
 	{
-		FilterPrecision precision = this->MaybeResolveAdaptiveFilterPrecision(fs, f0);
-		double w0 = this->GetW0(fs, f0);
-		switch (type)
+		double w0 = this->GetW0(f0);
+		FirstOrderCoefficients coefficients = FirstOrderCoefficients::Create(type, w0, gainInDB);
+		
+		FilterPrecision precision = this->MaybeResolveAdaptiveFilterPrecision(f0);
+		if (this->channels == 2 && Constant::StereoOptimizationEnabled)
 		{
-		case FilterType::Allpass:
-			return this->CreateAllpassFirstOrder<TSample>(w0, precision, channels);
-		default:
-			throw gcnew NotSupportedException(String::Format("Unhandled filter type {0}.", type));
+			switch (precision)
+			{
+			case FilterPrecision::Double:
+				return (IFilter<TSample>*)new StereoFirstOrder1Double(coefficients);
+			case FilterPrecision::Q31:
+				return (IFilter<TSample>*)new StereoFirstOrder1Q31(coefficients);
+			case FilterPrecision::Q31_32x64:
+			case FilterPrecision::Q31_64x64:
+				return (IFilter<TSample>*)new StereoFirstOrder1Q31_32x64(coefficients);
+			default:
+				throw gcnew NotSupportedException(String::Format("Unhandled filter precision {0}.", precision));
+			}
 		}
-	}
 
-	template <typename TSample>	IFilter<TSample>* FilterBank::CreateFirstOrder(double b0, double b1, double a0, double a1, FilterPrecision precision, __int32 channels)
-	{
 		switch (precision)
 		{
 		case FilterPrecision::Double:
-			return (IFilter<TSample>*)new FirstOrderFilterDouble(b0, b1, a0, a1, channels);
+			return (IFilter<TSample>*)new FirstOrder1Double(coefficients, this->channels);
 		case FilterPrecision::Q31:
-			return (IFilter<TSample>*)new FirstOrderFilterQ31(b0, b1, a0, a1, channels);
+			return (IFilter<TSample>*)new FirstOrder1Q31(coefficients, this->channels);
 		case FilterPrecision::Q31_32x64:
 		case FilterPrecision::Q31_64x64:
-			return (IFilter<TSample>*)new FirstOrderFilterQ31_32x64(b0, b1, a0, a1, channels);
+			return (IFilter<TSample>*)new FirstOrder1Q31_32x64(coefficients, this->channels);
 		default:
 			throw gcnew NotSupportedException(String::Format("Unhandled filter precision {0}.", precision));
 		}
@@ -200,95 +276,90 @@ namespace CrossTimeDsp::Dsp
 		}
 	}
 
-	template <typename TSample>	IFilter<TSample>* FilterBank::CreateHighpassBiquad(double w0, double alpha, FilterPrecision precision, __int32 channels)
+	template <typename TSample> IFilter<TSample>* FilterBank::CreateThirdOrder(FilterType biquadType, double biquadF0, double biquadQ, double biquadGainInDB, FilterType firstOrderType, double firstOrderF0, double firstOrderGainInDB)
 	{
-		double b0 = (1.0 + Math::Cos(w0)) / 2.0;
-		double b1 = -(1.0 + Math::Cos(w0));
-		double b2 = (1.0 + Math::Cos(w0)) / 2.0;
-		double a0 = 1.0 + alpha;
-		double a1 = -2.0 * Math::Cos(w0);
-		double a2 = 1.0 - alpha;
-		return this->CreateBiquad<TSample>(b0, b1, b2, a0, a1, a2, precision, channels);
+		double biquadW0 = this->GetW0(biquadF0);
+		double biquadAlpha = this->GetAlpha(biquadW0, biquadQ);
+		BiquadCoefficients biquadCoefficients = BiquadCoefficients::Create(biquadType, biquadW0, biquadAlpha, biquadGainInDB);
+
+		double firstOrderW0 = this->GetW0(firstOrderF0);
+		FirstOrderCoefficients firstOrderCoefficients = FirstOrderCoefficients::Create(firstOrderType, firstOrderW0, firstOrderGainInDB);
+
+		FilterPrecision precision = this->MaybeResolveAdaptiveFilterPrecision(std::min(biquadF0, firstOrderF0));
+		if (this->channels == 2 && Constant::StereoOptimizationEnabled)
+		{
+			switch (precision)
+			{
+			case FilterPrecision::Double:
+				return (IFilter<TSample>*)new StereoBiquad1FirstOrder1Double(biquadCoefficients, firstOrderCoefficients);
+			default:
+				throw gcnew NotSupportedException(String::Format("Unhandled filter precision {0}.", precision));
+			}
+		}
+
+		switch (precision)
+		{
+		case FilterPrecision::Double:
+			return (IFilter<TSample>*)new Biquad1FirstOrder1Double(biquadCoefficients, firstOrderCoefficients, this->channels);
+		default:
+			throw gcnew NotSupportedException(String::Format("Unhandled filter precision {0}.", precision));
+		}
 	}
 
-	template <typename TSample>	IFilter<TSample>* FilterBank::CreateHighShelf(double w0, double alpha, double gainInDB, FilterPrecision precision, __int32 channels)
+	template <typename TSample> std::vector<IFilter<TSample>*> FilterBank::CreateThreeWayLinearization(double lowCrossover, double highCrossover, double wooferRolloff, double midRolloff, double gainInDB)
 	{
-		double a = this->GetA(gainInDB);
-		double b0 = a * ((a + 1.0) + (a - 1.0) * Math::Cos(w0) + 2.0 * Math::Sqrt(a) * alpha);
-		double b1 = -2.0 * a * ((a - 1.0) + (a + 1.0) * Math::Cos(w0));
-		double b2 = a * ((a + 1.0) + (a - 1.0) * Math::Cos(w0) - 2.0 * Math::Sqrt(a) * alpha);
-		double a0 = (a + 1.0) - (a - 1.0) * Math::Cos(w0) + 2.0 * Math::Sqrt(a) * alpha;
-		double a1 = 2.0 * ((a - 1.0) - (a + 1.0) * Math::Cos(w0));
-		double a2 = (a + 1.0) - (a - 1.0) * Math::Cos(w0) - 2.0 * Math::Sqrt(a) * alpha;
-		return this->CreateBiquad<TSample>(b0, b1, b2, a0, a1, a2, precision, channels);
+		std::vector<IFilter<TSample>*> filters;
+		filters.push_back(this->CreateThirdOrder<TSample>(FilterType::Allpass, midRolloff, Constant::Linearization::HalfRoot2, gainInDB, FilterType::Allpass, wooferRolloff, 0.0));
+		filters.push_back(this->CreateThirdOrder<TSample>(FilterType::Allpass, lowCrossover, Constant::Linearization::LR6InverseAllpassQ, 0.0, FilterType::Allpass, lowCrossover, 0.0));
+		filters.push_back(this->CreateThirdOrder<TSample>(FilterType::Allpass, highCrossover, Constant::Linearization::LR6InverseAllpassQ, 0.0, FilterType::Allpass, highCrossover, 0.0));
+		return filters;
 	}
 
-	template <typename TSample>	IFilter<TSample>* FilterBank::CreateLowShelf(double w0, double alpha, double gainInDB, FilterPrecision precision, __int32 channels)
+	SampleBlock^ FilterBank::Filter(SampleBlock^ block, SampleType dataPathSampleType, SampleType outputSampleType, SampleBlock^% recirculatingDataPathBlock)
 	{
-		double a = this->GetA(gainInDB);
-		double b0 = a * ((a + 1.0) - (a - 1.0) * Math::Cos(w0) + 2.0 * Math::Sqrt(a) * alpha);
-		double b1 = 2.0 * a * ((a - 1.0) - (a + 1.0) * Math::Cos(w0));
-		double b2 = a * ((a + 1.0) - (a - 1.0) * Math::Cos(w0) - 2.0 * Math::Sqrt(a) * alpha);
-		double a0 = (a + 1.0) + (a - 1.0) * Math::Cos(w0) + 2.0 * Math::Sqrt(a) * alpha;
-		double a1 = -2.0 * ((a - 1.0) + (a + 1.0) * Math::Cos(w0));
-		double a2 = (a + 1.0) + (a - 1.0) * Math::Cos(w0) - 2.0 * Math::Sqrt(a) * alpha;
-		return this->CreateBiquad<TSample>(b0, b1, b2, a0, a1, a2, precision, channels);
-	}
+	#ifdef FILTER_BANK_INTERNAL_TIMING
+		DateTime dataPathStart = DateTime::UtcNow;
+	#endif
+		SampleBlock^ dataPathBlock = this->ConvertOrRecirculateBlock(block, dataPathSampleType, recirculatingDataPathBlock);
+	#ifdef FILTER_BANK_INTERNAL_TIMING
+		DateTime dataPathStop = DateTime::UtcNow;
+	#endif
 
-	template <typename TSample>	IFilter<TSample>* FilterBank::CreateLowpassBiquad(double w0, double alpha, FilterPrecision precision, __int32 channels)
-	{
-		double b0 = (1.0 - Math::Cos(w0)) / 2.0;
-		double b1 = 1.0 - Math::Cos(w0);
-		double b2 = (1.0 - Math::Cos(w0)) / 2.0;
-		double a0 = 1.0 + alpha;
-		double a1 = -2.0 * Math::Cos(w0);
-		double a2 = 1.0 - alpha;
-		return this->CreateBiquad<TSample>(b0, b1, b2, a0, a1, a2, precision, channels);
-	}
-
-	template <typename TSample>	IFilter<TSample>* FilterBank::CreateNotch(double w0, double alpha, FilterPrecision precision, __int32 channels)
-	{
-		double b0 = 1.0;
-		double b1 = -2.0 * Math::Cos(w0);
-		double b2 = 1.0;
-		double a0 = 1.0 + alpha;
-		double a1 = -2.0 * Math::Cos(w0);
-		double a2 = 1.0 - alpha;
-		return this->CreateBiquad<TSample>(b0, b1, b2, a0, a1, a2, precision, channels);
-	}
-
-	template <typename TSample>	IFilter<TSample>* FilterBank::CreatePeaking(double w0, double alpha, double gainInDB, FilterPrecision precision, __int32 channels)
-	{
-		double a = this->GetA(gainInDB);
-		double b0 = 1.0 + alpha * a;
-		double b1 = -2.0 * Math::Cos(w0);
-		double b2 = 1.0 - alpha * a;
-		double a0 = 1.0 + alpha / a;
-		double a1 = -2.0 * Math::Cos(w0);
-		double a2 = 1.0 - alpha / a;
-		return this->CreateBiquad<TSample>(b0, b1, b2, a0, a1, a2, precision, channels);
-	}
-
-	SampleBlock^ FilterBank::Filter(SampleBlock^ block, SampleType dataPathSampleType, SampleType outputSampleType)
-	{
-		block = block->ConvertTo(dataPathSampleType);
-		pin_ptr<double> blockAsDoubles = nullptr;
-		pin_ptr<__int32> blockAsInt32s = nullptr;
 		switch (dataPathSampleType)
 		{
 		case SampleType::Double:
-			blockAsDoubles = &block->DoubleBuffer[0];
-			this->Filter<double>(this->doubleFilters, blockAsDoubles, block->DoubleBufferCount, Constant::FilterBlockSizeInDoubles);
+			this->Filter<double>(this->doubleFilters, dataPathBlock->Doubles, dataPathBlock->DoubleSamples, Constant::FilterBlockSizeInDoubles);
 			break;
 		case SampleType::Int32:
-			blockAsInt32s = &block->IntBuffer[0];
-			this->Filter<__int32>(this->intFilters, blockAsInt32s, block->IntBufferCount, Constant::FilterBlockSizeInInt32s);
+			this->Filter<__int32>(this->intFilters, dataPathBlock->Int32s, dataPathBlock->Int32Samples, Constant::FilterBlockSizeInInt32s);
 			break;
 		default:
 			throw gcnew NotSupportedException(String::Format("Unhandled data path sample type {0}.", dataPathSampleType));
 		}
+	#ifdef FILTER_BANK_INTERNAL_TIMING
+		DateTime filterStop = DateTime::UtcNow;
+	#endif
 
-		return block->ConvertTo(outputSampleType);
+		SampleBlock^ outputBlock;
+		if (dataPathBlock->SampleType != outputSampleType)
+		{
+			outputBlock = dataPathBlock->ConvertTo(outputSampleType);
+			if (block->SampleType != dataPathSampleType)
+			{
+				// if block conversion occurs on both input and output the data path block is scoped to this function and can be reused on the next iteration
+				// Reuse avoid performance degradation from a many GB pileup of unused memory as the garbage collector doesn't keep up with the data path block
+				// discard rate.  The slight overhead of going to the aligned memory system to discard blocks and retrieve them from its cache is also avoided.
+				recirculatingDataPathBlock = dataPathBlock;
+			}
+		}
+	#ifdef FILTER_BANK_INTERNAL_TIMING
+		DateTime outputStop = DateTime::UtcNow;
+
+		this->toDataPathTime += dataPathStop.Ticks - dataPathStart.Ticks;
+		this->filterTime += filterStop.Ticks - dataPathStop.Ticks;
+		this->toOutputTime += outputStop.Ticks - filterStop.Ticks;
+	#endif
+		return outputBlock;
 	}
 
 	template <typename TSample>	void FilterBank::Filter(std::vector<IFilter<TSample>*>* filters, TSample* block, __int32 blockLength, __int32 filterBlockSizeInSamples)
@@ -302,39 +373,63 @@ namespace CrossTimeDsp::Dsp
 		}
 	}
 
-	SampleBlock^ FilterBank::FilterReverse(SampleBlock^ block, SampleType dataPathSampleType, SampleType outputSampleType)
+	SampleBlock^ FilterBank::FilterReverse(SampleBlock^ block, SampleType dataPathSampleType, SampleType outputSampleType, SampleBlock^% recirculatingDataPathBlock)
 	{
-		block = block->ConvertTo(dataPathSampleType);
-		pin_ptr<double> blockAsDoubles = nullptr;
-		pin_ptr<__int32> blockAsInt32s = nullptr;
+	#ifdef FILTER_BANK_INTERNAL_TIMING
+		DateTime dataPathStart = DateTime::UtcNow;
+	#endif
+		SampleBlock^ dataPathBlock = this->ConvertOrRecirculateBlock(block, dataPathSampleType, recirculatingDataPathBlock);
+		dataPathBlock->ZeroUnused();
+	#ifdef FILTER_BANK_INTERNAL_TIMING
+		DateTime dataPathStop = DateTime::UtcNow;
+	#endif
+
 		__int32 count = 0;
 		switch (dataPathSampleType)
 		{
 		case SampleType::Double:
-			count = block->DoubleBufferCount;
+			count = dataPathBlock->DoubleSamples;
 			if (count % Constant::FilterBlockSizeInDoubles != 0)
 			{
 				count = (count / Constant::FilterBlockSizeInDoubles + 1) * Constant::FilterBlockSizeInDoubles;
 			}
-			Debug::Assert(count * sizeof(double) <= block->MaximumSizeInBytes, String::Format("Block allocation failure: maximum size of {0} bytes is not a multiple of the {1} byte filter block size.", block->MaximumSizeInBytes, Constant::FilterBlockSizeInBytes));
-			blockAsDoubles = &block->DoubleBuffer[0];
-			this->FilterReverse<double>(this->doubleFilters, blockAsDoubles, count, Constant::FilterBlockSizeInDoubles);
+			Debug::Assert(count * sizeof(double) <= dataPathBlock->MaximumSizeInBytes, String::Format("Block allocation failure: maximum size of {0} bytes is not a multiple of the {1} byte filter block size.", dataPathBlock->MaximumSizeInBytes, Constant::FilterBlockSizeInBytes));
+			this->FilterReverse<double>(this->doubleFilters, dataPathBlock->Doubles, count, Constant::FilterBlockSizeInDoubles);
 			break;
 		case SampleType::Int32:
-			count = block->IntBufferCount;
+			count = dataPathBlock->Int32Samples;
 			if (count % Constant::FilterBlockSizeInInt32s != 0)
 			{
 				count = (count / Constant::FilterBlockSizeInInt32s + 1) * Constant::FilterBlockSizeInInt32s;
 			}
-			Debug::Assert(count * sizeof(__int32) <= block->MaximumSizeInBytes, String::Format("Block allocation failure: maximum size of {0} bytes is not a multiple of the {1} byte filter block size.", block->MaximumSizeInBytes, Constant::FilterBlockSizeInBytes));
-			blockAsInt32s = &block->IntBuffer[0];
-			this->FilterReverse<__int32>(this->intFilters, blockAsInt32s, count, Constant::FilterBlockSizeInInt32s);
+			Debug::Assert(count * sizeof(__int32) <= dataPathBlock->MaximumSizeInBytes, String::Format("Block allocation failure: maximum size of {0} bytes is not a multiple of the {1} byte filter block size.", dataPathBlock->MaximumSizeInBytes, Constant::FilterBlockSizeInBytes));
+			this->FilterReverse<__int32>(this->intFilters, dataPathBlock->Int32s, count, Constant::FilterBlockSizeInInt32s);
 			break;
 		default:
 			throw gcnew NotSupportedException(String::Format("Unhandled data path sample type {0}.", dataPathSampleType));
 		}
+	#ifdef FILTER_BANK_INTERNAL_TIMING
+		DateTime filterStop = DateTime::UtcNow;
+	#endif
 
-		return block->ConvertTo(outputSampleType);
+		SampleBlock^ outputBlock = dataPathBlock;
+		if (dataPathBlock->SampleType != outputSampleType)
+		{
+			outputBlock = dataPathBlock->ConvertTo(outputSampleType);
+			if (block->SampleType != dataPathSampleType)
+			{
+				// see remarks in Filter()
+				recirculatingDataPathBlock = dataPathBlock;
+			}
+		}
+	#ifdef FILTER_BANK_INTERNAL_TIMING
+		DateTime outputStop = DateTime::UtcNow;
+
+		this->toDataPathTime += dataPathStop.Ticks - dataPathStart.Ticks;
+		this->filterTime += filterStop.Ticks - dataPathStop.Ticks;
+		this->toOutputTime += outputStop.Ticks - filterStop.Ticks;
+	#endif
+		return outputBlock;
 	}
 
 	template <typename TSample>	void FilterBank::FilterReverse(std::vector<IFilter<TSample>*>* filters, TSample* block, __int32 count, __int32 filterBlockSizeInSamples)
@@ -348,29 +443,25 @@ namespace CrossTimeDsp::Dsp
 		}
 	}
 
-	double FilterBank::GetA(double gainInDB)
-	{
-		return Math::Pow(10.0, gainInDB / 40.0);
-	}
-
 	double FilterBank::GetAlpha(double w0, double q)
 	{
 		return Math::Sin(w0) / (2.0 * q);
 	}
 
-	double FilterBank::GetW0(double fs, double f0)
+	double FilterBank::GetW0(double f0)
 	{
-		return 2.0 * Math::PI * f0 / fs;
+		Debug::Assert(f0 < 0.5 * this->fs, String::Format("Center frequency of {0}Hz exceeds Nyquist frequency of {1}kHz.", f0, 0.001 * this->fs));
+		return 2.0 * Math::PI * f0 / this->fs;
 	}
 
-	FilterPrecision FilterBank::MaybeResolveAdaptiveFilterPrecision(double fs, double f0)
+	FilterPrecision FilterBank::MaybeResolveAdaptiveFilterPrecision(double f0)
 	{
 		if (this->precision != FilterPrecision::Q31Adaptive)
 		{
 			return this->precision;
 		}
 
-		double normalizedCenterFrequency = f0 / fs;
+		double normalizedCenterFrequency = f0 / this->fs;
 		if (normalizedCenterFrequency > this->q31_32x64_Threshold)
 		{
 			return FilterPrecision::Q31;

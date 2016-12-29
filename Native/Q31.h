@@ -16,6 +16,7 @@ namespace CrossTimeDsp::Dsp
 		Q31(double value, __int32 fractionalBits);
 
 		__int32 FractionalBits();
+		__int32 Value();
 
 		static __int32 GetOptimalNumberOfFractionalBits(double value);
 		static __int32 GetOptimalNumberOfFractionalBits(std::initializer_list<double> values);

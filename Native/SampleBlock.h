@@ -2,42 +2,22 @@
 #include "SampleType.h"
 
 using namespace System;
-using namespace System::Runtime::InteropServices;
 
 namespace CrossTimeDsp::Dsp
 {
-	// #pragma warning (disable : CA1900)
-	[StructLayout(LayoutKind::Explicit, Pack = 4)]
 	public ref class SampleBlock
 	{
 	private:
-		[FieldOffset(0)]
+		unsigned __int8* block;
+		__int32 bytesAllocated;
 		__int32 bytesInUse;
-
-		[FieldOffset(4)]
 		SampleType sampleType;
 
-		[FieldOffset(8)]
-		array<Byte>^ byteBuffer;
-		[FieldOffset(8)]
-		array<double>^ doubleBuffer;
-		[FieldOffset(8)]
-		array<__int32>^ intBuffer;
-		[FieldOffset(8)]
-		array<__int16>^ shortBuffer;
-
 	public:
+		SampleBlock(array<Byte>^ buffer, __int32 bytesInUse, SampleType sampleType);
 		SampleBlock(__int32 requestedSizeInBytes, SampleType sampleType);
-
-		property array<Byte>^ ByteBuffer
-		{
-			array<Byte>^ get() { return this->byteBuffer; }
-		}
-
-		property __int32 ByteBufferCount
-		{
-			__int32 get() { return this->bytesInUse; }
-		}
+		!SampleBlock();
+		~SampleBlock();
 
 		property __int32 BytesInUse
 		{
@@ -45,29 +25,39 @@ namespace CrossTimeDsp::Dsp
 			void set(__int32 value) { this->bytesInUse = value; }
 		}
 
-		property array<double>^ DoubleBuffer
+		property double* Doubles
 		{
-			array<double>^ get() { return this->doubleBuffer; }
+			double* get() { return reinterpret_cast<double *>(this->block); }
 		}
 
-		property __int32 DoubleBufferCount
+		property __int32 DoubleSamples
 		{
 			__int32 get() { return this->bytesInUse / 8; }
 		}
 
-		property array<__int32>^ IntBuffer
+		property __int16* Int16s
 		{
-			array<__int32>^ get() { return this->intBuffer; }
+			__int16* get() { return reinterpret_cast<__int16*>(this->block); }
 		}
 
-		property __int32 IntBufferCount
+		property __int32 Int16Samples
+		{
+			__int32 get() { return this->bytesInUse / 2; }
+		}
+
+		property __int32* Int32s
+		{
+			__int32* get() { return reinterpret_cast<__int32*>(this->block); }
+		}
+
+		property __int32 Int32Samples
 		{
 			__int32 get() { return this->bytesInUse / 4; }
 		}
 
 		property __int32 MaximumSizeInBytes
 		{
-			__int32 get() { return this->byteBuffer->Length; }
+			__int32 get() { return this->bytesAllocated; }
 		}
 
 		property __int32 SamplesInUse
@@ -81,33 +71,11 @@ namespace CrossTimeDsp::Dsp
 			void set(Dsp::SampleType value) { this->sampleType = value; }
 		}
 
-		property array<__int16>^ ShortBuffer
-		{
-			array<__int16>^ get() { return this->shortBuffer; }
-		}
-
-		property __int32 ShortBufferCount
-		{
-			__int32 get() { return this->bytesInUse / 2; }
-		}
-
-		SampleBlock^ ConvertTo(Dsp::SampleType sampleType);
-		__int32 GetInt24AsInt32(__int32 sample);
-
-	private:
 		__int32 BytesPerSample(Dsp::SampleType sampleType);
-
-		void ConvertDoubleToQ15(SampleBlock^ convertedBlock);
-		void ConvertDoubleToQ23(SampleBlock^ convertedBlock);
-		void ConvertDoubleToQ31(SampleBlock^ convertedBlock);
-		void ConvertQ15ToDouble(SampleBlock^ convertedBlock);
-		void ConvertQ15ToQ31(SampleBlock^ convertedBlock);
-		void ConvertQ23ToDouble(SampleBlock^ convertedBlock);
-		void ConvertQ23ToQ31(SampleBlock^ convertedBlock);
-		void ConvertQ31ToDouble(SampleBlock^ convertedBlock);
-		void ConvertQ31ToQ15(SampleBlock^ convertedBlock);
-		void ConvertQ31ToQ23(SampleBlock^ convertedBlock);
-
-		void SetInt32AsInt24(__int32 value, SampleBlock^ convertedBlock, __int32 sample);
+		SampleBlock^ ConvertTo(Dsp::SampleType sampleType);
+		void SampleBlock::ConvertTo(SampleBlock^ block);
+		void SampleBlock::CopyTo(__int32 sourceOffset, array<Byte>^ destination, __int32 destinationOffset, __int32 bytesToCopy);
+		__int32 GetInt24AsInt32(__int32 sample);
+		void ZeroUnused();
 	};
 }

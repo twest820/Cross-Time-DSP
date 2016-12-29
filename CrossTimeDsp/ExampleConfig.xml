@@ -2,7 +2,7 @@
 <crossTimeDsp>
   <!-- The engine element controls how Cross Time DSP performs signal processing. -->
   <!-- The precision element specifies what form of math Cross Time DSP uses when performing DSP operations.
-        Supported values are Double, Q31, Q31_32x64, and Q31Adaptive.
+        Supported values are Double, Q31, Q31_32x64, and Q31Adaptive.  The default of Double is usually sufficient.
          
         - Specifying Double causes Cross Time DSP to use 64 bit floating point numbers for all its calculations.  This is generally 
           considered to be mastering quality.
@@ -19,11 +19,9 @@
           q31_64x64_Threshold use Q31_64x64 precision. These two thresholds allow tuning of filter banks' accuracy versus processing 
           requirements.
          
-        In memory processing using doubles is around 40% faster than fixed point and maintains higher precision.  Use of doubles is 
-        therefore recommended as a default.  The Q31 forms can be faster on long tracks since they have half the in memory footprint and 
-        may therefore avoid swapping of the reverse time buffer to disk that would occur with doubles.  But the primary reason Cross Time 
-        DSP supports fixed point is to allow evaluation of fixed point accuracy relative to doubles when porting filters to processors 
-        lacking 64 bit floating point support.
+        In memory processing using doubles is faster than fixed point and maintains higher precision than most Q31 forms.  Use of doubles
+        is therefore recommended.  (The primary reason Cross Time DSP supports fixed point is to allow evaluation of fixed point accuracy 
+        relative to doubles when porting filters to processors lacking 64 bit floating point support.)
         -->
   <!-- The reverseTimeAntiClippingAttenuationInDB attribute specifies how to change the volume between the input and output files.
          
@@ -47,63 +45,109 @@
         -->
     <q31Adaptive q31_32x64_Threshold="0.02" q31_64x64_Threshold="0.002"/>
   </engine>
-  <!-- The filters element specifies the filtering Cross Time DSP should perform.  Filters are applied in the order specified.  -->
+  <!-- The filters element specifies the filtering Cross Time DSP should perform.  The filters are grouped into reverse and forward time 
+       and then applied in the order specified within their groups.  The reverse time pass is done first, followed by forwrad time. -->
   <filters>
-      <!-- A firstOrderFilterElement specifies a single first order to include in Cross Time DSP's processing chain.  The syntax is
+      <!-- A firstOrder element specifies a single first order to include in Cross Time DSP's processing chain.  The syntax is
     
-          <firstOrder timeDirection="<direction>" type="<type>" f0="<center frequency in Hz>" />
+            <firstOrder timeDirection="<direction>" type="<type>" f0="<center frequency in Hz>" gainInDB="<number>" />
          
           where
-          - the direction attribute specifies whether the filter operates in forward or reverse time
-            valid values are Forward and Reverse
-          - the type attribute specifies the type of the filter
-            valid values are Allpass
-          - f0 is the filter's center frequency in Hz
-    -->
-    <!-- A biquad specifies a single biquad to include in Cross Time DSP's processing chain.  The syntax is
-    
-          <biquad timeDirection="<direction>" type="<type>" f0="<center frequency in Hz>" q="" gainInDB="" />
-         
-          where
-          - the direction attribute specifies whether the filter operates in forward or reverse time
+          - the timeDirection attribute specifies whether the filter operates in forward or reverse time
             Valid values are Forward and Reverse.
           - the type attribute specifies the type of the filter
-            Valid values are Allpass, Bandpass, Highpass, HighShelf, Lowpass, LowShelf, Notch, and Peaking.
+            Valid values are Allpass.
           - f0 is the filter's center frequency in Hz
-          - q is the filter's Q as defined in the Bristow-Johnson cookbok
-          - gainInDB is the gain of shelving and peaking filters
-            This attribute is ignored by other filter types.
+          - gainInDB is the gain of the filter
+            Typically this attribute need not be set.
+    -->
+    <!-- A biquad element specifies a single biquad to include in Cross Time DSP's processing chain.  The syntax is
+    
+          <biquad timeDirection="<direction>" type="<type>" f0="<center frequency>" q="<number>" gainInDB="<number>" />
+         
+        where
+          - the timeDirection attribute specifies whether the filter operates in forward or reverse time
+            Valid values are Forward and Reverse.
+          - the type attribute specifies the type of the biquad
+            Valid values are Allpass, Bandpass, Highpass, HighShelf, Lowpass, LowShelf, Notch, and Peaking.
+          - f0 is the biquad's center frequency in Hz
+          - q is the biquad's Q as defined in the Bristow-Johnson cookbook
+            The cookbook is available from http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt.
+          - gainInDB is the gain of the filter
+            Typically this attribute need not be set.  It is needed for shelving filters.
+    -->
+    <!-- A thirdOrder element specifies a biquad and a first order filter to include in Cross Time DSP's processing chain.  The syntax is
+    
+          <thirdOrder timeDirection="<direction>">
+            <biquad type="<type>" f0="<center frequency>" q="<number>" gainInDB="<number>" />
+            <firstOrder type="<type>" f0="<center frequency in Hz>" gainInDB="<number>" />
+          </thirdOrder>
+         
+        where
+          - the timeDirection attribute specifies whether the filters operate in forward or reverse time
+            Valid values are Forward and Reverse.
+          - the biquad element specifies the biquad
+          - the firstOrder element specifies the first order filter
+          
+        This form is preferred to a separate biquad and first order faster processing when it is possible to combine the two.  However, 
+        it is currently only available when the <engine> precision attribute is set to double.  The biquad is applied before the first 
+        order filter.
     -->
     <!-- The example below has the following phase corrections.
           - a first order allpass correction at 40Hz to compensate for second order woofer rolloff in the low bass
-          - a LR4 phase correction at 150Hz to compensate for dipole equalization of a midrange
-          - a LR6 correction at 200Hz to linearize an LR6 crossover at this frequency
-          - a LR6 correction at 1.7kHz to linearize an LR6 crossover at this frequency
+          - an LR4 phase correction at 150Hz to compensate for dipole equalization of a midrange
+          - an LR6 correction at 200Hz to linearize an LR6 crossover at this frequency
+          - an LR6 correction at 1.7kHz to linearize an LR6 crossover at this frequency
     -->
-    <firstOrder timeDirection="Reverse" type="Allpass" f0="40"/>
-    <biquad timeDirection="Reverse" type="Allpass" f0="150" q="0.7071"/>
-    <biquad timeDirection="Reverse" type="Allpass" f0="200" q="1.0"/>
-    <firstOrder timeDirection="Reverse" type="Allpass" f0="200"/>
-    <biquad timeDirection="Reverse" type="Allpass" f0="1700" q="1.0"/>
-    <firstOrder timeDirection="Reverse" type="Allpass" f0="1700"/>
+    <thirdOrder timeDirection="Reverse">
+      <biquad type="Allpass" f0="150" q="0.7071"/>
+      <firstOrder f0="40"/>
+    </thirdOrder>
+    <thirdOrder timeDirection="Reverse">
+      <biquad type="Allpass" f0="200" q="1.0"/>
+      <firstOrder f0="200"/>
+    </thirdOrder>
+    <thirdOrder timeDirection="Reverse">
+      <biquad type="Allpass" f0="1700" q="1.0"/>
+      <firstOrder f0="1700"/>
+    </thirdOrder>
+    <!-- When the engine precision is set to a fixed point mode an equivalent result can be obtained from stating these as
+    
+          <firstOrder timeDirection="Reverse" type="Allpass" f0="40"/>
+          <biquad timeDirection="Reverse" type="Allpass" f0="150" q="0.7071"/>
+          <biquad timeDirection="Reverse" type="Allpass" f0="200" q="1.0"/>
+          <firstOrder timeDirection="Reverse" type="Allpass" f0="200"/>
+          <biquad timeDirection="Reverse" type="Allpass" f0="1700" q="1.0"/>
+          <firstOrder timeDirection="Reverse" type="Allpass" f0="1700"/>
+        
+        Additionally, the special case syntax
+        
+          <linearizeThreeWay lowCrossover="200" highCrossover="1700" wooferRolloff="40" midRolloff="150"/>
+        
+        is available as a shorthand for the <thirdOrder> version.
+    -->
   </filters>
   <!-- The output section provides some control over how Cross Time DSP writes output files to disk. -->
+  <!-- The bitsPerSample attribute can be set to 16, 24, or 32.  While music is commonly distributed as 16 bit use of 24 bit is recommended for phase
+       linearized outputs as mathematics indicate and ABX testing confirms sufficent phase quantization occurs in the kHz region in 16 bit outputs for
+       24 bit to be subjectively preferable by a slight amount.
+  -->
   <!-- The encoding attribute specifies the format of the output file.
         Supported values are AdvancedAudio, AppleLossless, Flac, Mp3, Wave, WindowsMediaAudio9, and WindowsMediaAudioLossless.  These result in
         .mp4, .m4a, .flac, .mp3, .wav, .wma, and .wma files, respectively.
   -->
   <output bitsPerSample="24" encoding="Flac">
-    <!-- The collidingFileNamePostfix element specifies the string to append to file names when Cross Time DSP is processing a
-          file, the input and output directories are the same, and the output format is the same as the imput format.  This is needed to 
-          keep to the input and output files distinct in this special case.  In other situations the input and output directories or 
-          formats differ and the output file name is kept the same as the input file.  Regardless of what the output file name ends up being, existing files will be overwritten if they are older
-          than the input file.  Output files which are newer than the input file are assumed to be up to date and are not modified.  If this
-          assumption is incorrect, delete the output file and rerun Cross Time DSP.
+    <!-- The collidingFileNamePostfix element specifies the string to append to file names when Cross Time DSP is processing a file, the input and output
+         directories are the same, and the output format is the same as the imput format.  This is needed to keep to the input and output files distinct 
+         in this special case.  In other situations the input and output directories or formats differ and the output file name is kept the same as the 
+         input file.  Regardless of what the output file name ends up being, existing files will be overwritten if they are older than the input file.  
+         Output files which are newer than the input file are assumed to be up to date and are not modified.  If this assumption is incorrect, delete the 
+         output file and rerun Cross Time DSP.
+          
+         In the case where some files have been converted between formats and the directory is being reprocessed, set this element to 
+         <collidingFileNamePostfix></collidingFileNamePostfix> to avoid generating duplicates of the existing files.
            
-          In the case where some files have been converted between formats and the directory is being reprocessed, set this element to 
-          <collidingFileNamePostfix></collidingFileNamePostfix> to avoid generating duplicates of the existing files.
-           
-          The output file extension is updated as needed to reflect its encoding.
+         The output file extension is updated as needed to reflect its encoding.
       -->      
     <collidingFileNamePostfix> - Cross Time DSP</collidingFileNamePostfix>
   </output>
