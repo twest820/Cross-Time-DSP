@@ -1,9 +1,9 @@
 #pragma once
-#include "FilterType.h"
+#include "FilterTypeNative.h"
 
 namespace CrossTimeDsp::Dsp
 {
-	private class FirstOrderCoefficients
+	class __declspec(dllexport) FirstOrderCoefficients
 	{
 	public:
 		double A0;
@@ -11,7 +11,7 @@ namespace CrossTimeDsp::Dsp
 		double B0;
 		double B1;
 
-		static FirstOrderCoefficients Create(FilterType type, double w0, double gainInDB);
+		static FirstOrderCoefficients Create(FilterTypeNative type, double w0, double gainInDB);
 
 	private:
 		virtual void AdjustGain(double adjustmentInDB);

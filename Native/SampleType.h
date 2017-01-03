@@ -1,7 +1,7 @@
 #pragma once
 namespace CrossTimeDsp::Dsp
 {
-	public enum class SampleType
+	public enum class SampleType : __int32
 	{
 		Unspecified,
 		Double,

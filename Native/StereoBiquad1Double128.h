@@ -6,7 +6,7 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	private class StereoBiquad1Double : IFilter<double>
+	class __declspec(dllexport) StereoBiquad1Double128 : public IFilter<double>
 	{
 	private:
 		__m128d a1;
@@ -20,7 +20,7 @@ namespace CrossTimeDsp::Dsp
 		__m128d y2;
 
 	public:
-		StereoBiquad1Double(BiquadCoefficients coefficients);
+		StereoBiquad1Double128(BiquadCoefficients coefficients);
 
 		virtual void Filter(double* block, __int32 offset);
 		virtual void FilterReverse(double* block, __int32 offset);

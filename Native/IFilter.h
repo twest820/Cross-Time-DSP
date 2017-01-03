@@ -3,7 +3,7 @@
 namespace CrossTimeDsp::Dsp
 {
 	template <typename TSample>
-	private class IFilter
+	class __declspec(dllexport) IFilter
 	{
 	public:
 		virtual ~IFilter() {}

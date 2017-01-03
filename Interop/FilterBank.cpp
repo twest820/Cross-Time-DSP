@@ -1,11 +1,14 @@
 #include "stdafx.h"
 #include <algorithm>
+#include "BiquadCoefficients.h"
 #include "Biquad1Double.h"
+#include "Biquad1FirstOrder1Double.h"
 #include "Biquad1Q31.h"
 #include "Biquad1Q31_32x64.h"
 #include "Biquad1Q31_64x64.h"
 #include "Constant.h"
 #include "FilterBank.h"
+#include "FirstOrderCoefficients.h"
 #include "FirstOrder1Double.h"
 #include "FirstOrder1Q31.h"
 #include "FirstOrder1Q31_32x64.h"
@@ -13,16 +16,17 @@
 #include "GainQ31.h"
 #include "GainQ31_64x64.h"
 #include "InstructionSet.h"
-#include "StereoBiquad1Double.h"
+#include "StereoBiquad1Double128.h"
+#include "StereoBiquad1Double256.h"
+#include "StereoBiquad1FirstOrder1Double128.h"
+#include "StereoBiquad2FirstOrder2Double256.h"
 #include "StereoBiquad1Q31.h"
 #include "StereoBiquad1Q31_32x64.h"
 #include "StereoBiquad1Q31_64x64.h"
-#include "StereoFirstOrder1Double.h"
+#include "StereoFirstOrder1Double128.h"
 #include "StereoBiquad1Q31.h"
 #include "StereoFirstOrder1Q31.h"
 #include "StereoFirstOrder1Q31_32x64.h"
-#include "StereoBiquad1FirstOrder1Double.h"
-#include "Biquad1FirstOrder1Double.h"
 
 using namespace System;
 using namespace System::Diagnostics;
@@ -31,9 +35,9 @@ namespace CrossTimeDsp::Dsp
 {
 	FilterBank::FilterBank(FilterPrecision precision, __int32 fs, __int32 channels, double q31_32x64_Threshold, double q31_64x64_Threshold)
 	{
-		if (InstructionSet::Sse41() == false)
+		if (InstructionSet::Avx() == false)
 		{
-			throw gcnew NotSupportedException("Sorry, Cross Time DSP requires SSE4.1.  Please try on a newer machine (2008 or later is probably sufficient) or use Cross Time DSP 0.5.0.0.");
+			throw gcnew NotSupportedException("Sorry, Cross Time DSP requires AVX.  Please try on a second generation Intel Core, newer, or equivalent machine (Sandy Bridge; 2011 or later is probably sufficient) or use Cross Time DSP 0.6.0.0.");
 		}
 		if (fs < 1)
 		{
@@ -187,15 +191,24 @@ namespace CrossTimeDsp::Dsp
 	{
 		double w0 = this->GetW0(f0);
 		double alpha = this->GetAlpha(w0, q);
-		BiquadCoefficients coefficients = BiquadCoefficients::Create(type, w0, alpha, gainInDB);
+		BiquadCoefficients coefficients = BiquadCoefficients::Create(static_cast<FilterTypeNative>(type), w0, alpha, gainInDB);
 
 		FilterPrecision precision = this->MaybeResolveAdaptiveFilterPrecision(f0);
 		if (this->channels == 2 && Constant::StereoOptimizationEnabled)
 		{
+			if (InstructionSet::Avx() && Constant::Simd256FilterOrderRequired <= 2)
+			{
+				switch (precision)
+				{
+				case FilterPrecision::Double:
+					return (IFilter<TSample>*)new StereoBiquad1Double256(coefficients);
+				}
+			}
+
 			switch (precision)
 			{
 			case FilterPrecision::Double:
-				return (IFilter<TSample>*)new StereoBiquad1Double(coefficients);
+				return (IFilter<TSample>*)new StereoBiquad1Double128(coefficients);
 			case FilterPrecision::Q31:
 				return (IFilter<TSample>*)new StereoBiquad1Q31(coefficients);
 			case FilterPrecision::Q31_32x64:
@@ -225,7 +238,7 @@ namespace CrossTimeDsp::Dsp
 	template <typename TSample>	IFilter<TSample>* FilterBank::CreateFirstOrder(FilterType type, double f0, double gainInDB)
 	{
 		double w0 = this->GetW0(f0);
-		FirstOrderCoefficients coefficients = FirstOrderCoefficients::Create(type, w0, gainInDB);
+		FirstOrderCoefficients coefficients = FirstOrderCoefficients::Create(static_cast<FilterTypeNative>(type), w0, gainInDB);
 		
 		FilterPrecision precision = this->MaybeResolveAdaptiveFilterPrecision(f0);
 		if (this->channels == 2 && Constant::StereoOptimizationEnabled)
@@ -233,7 +246,7 @@ namespace CrossTimeDsp::Dsp
 			switch (precision)
 			{
 			case FilterPrecision::Double:
-				return (IFilter<TSample>*)new StereoFirstOrder1Double(coefficients);
+				return (IFilter<TSample>*)new StereoFirstOrder1Double128(coefficients);
 			case FilterPrecision::Q31:
 				return (IFilter<TSample>*)new StereoFirstOrder1Q31(coefficients);
 			case FilterPrecision::Q31_32x64:
@@ -280,10 +293,10 @@ namespace CrossTimeDsp::Dsp
 	{
 		double biquadW0 = this->GetW0(biquadF0);
 		double biquadAlpha = this->GetAlpha(biquadW0, biquadQ);
-		BiquadCoefficients biquadCoefficients = BiquadCoefficients::Create(biquadType, biquadW0, biquadAlpha, biquadGainInDB);
+		BiquadCoefficients biquadCoefficients = BiquadCoefficients::Create(static_cast<FilterTypeNative>(biquadType), biquadW0, biquadAlpha, biquadGainInDB);
 
 		double firstOrderW0 = this->GetW0(firstOrderF0);
-		FirstOrderCoefficients firstOrderCoefficients = FirstOrderCoefficients::Create(firstOrderType, firstOrderW0, firstOrderGainInDB);
+		FirstOrderCoefficients firstOrderCoefficients = FirstOrderCoefficients::Create(static_cast<FilterTypeNative>(firstOrderType), firstOrderW0, firstOrderGainInDB);
 
 		FilterPrecision precision = this->MaybeResolveAdaptiveFilterPrecision(std::min(biquadF0, firstOrderF0));
 		if (this->channels == 2 && Constant::StereoOptimizationEnabled)
@@ -291,7 +304,7 @@ namespace CrossTimeDsp::Dsp
 			switch (precision)
 			{
 			case FilterPrecision::Double:
-				return (IFilter<TSample>*)new StereoBiquad1FirstOrder1Double(biquadCoefficients, firstOrderCoefficients);
+				return (IFilter<TSample>*)new StereoBiquad1FirstOrder1Double128(biquadCoefficients, firstOrderCoefficients);
 			default:
 				throw gcnew NotSupportedException(String::Format("Unhandled filter precision {0}.", precision));
 			}
@@ -309,10 +322,50 @@ namespace CrossTimeDsp::Dsp
 	template <typename TSample> std::vector<IFilter<TSample>*> FilterBank::CreateThreeWayLinearization(double lowCrossover, double highCrossover, double wooferRolloff, double midRolloff, double gainInDB)
 	{
 		std::vector<IFilter<TSample>*> filters;
-		filters.push_back(this->CreateThirdOrder<TSample>(FilterType::Allpass, midRolloff, Constant::Linearization::HalfRoot2, gainInDB, FilterType::Allpass, wooferRolloff, 0.0));
-		filters.push_back(this->CreateThirdOrder<TSample>(FilterType::Allpass, lowCrossover, Constant::Linearization::LR6InverseAllpassQ, 0.0, FilterType::Allpass, lowCrossover, 0.0));
+		if (InstructionSet::Avx() && Constant::Simd256FilterOrderRequired <= 6)
+		{
+			filters.push_back(this->CreateSixthOrder<TSample>(FilterType::Allpass, midRolloff, Constant::Linearization::HalfRoot2, gainInDB, FilterType::Allpass, wooferRolloff, 0.0,
+			                                                  FilterType::Allpass, lowCrossover, Constant::Linearization::LR6InverseAllpassQ, 0.0, FilterType::Allpass, lowCrossover, 0.0));
+		}
+		else
+		{
+			filters.push_back(this->CreateThirdOrder<TSample>(FilterType::Allpass, midRolloff, Constant::Linearization::HalfRoot2, gainInDB, FilterType::Allpass, wooferRolloff, 0.0));
+			filters.push_back(this->CreateThirdOrder<TSample>(FilterType::Allpass, lowCrossover, Constant::Linearization::LR6InverseAllpassQ, 0.0, FilterType::Allpass, lowCrossover, 0.0));
+		}
 		filters.push_back(this->CreateThirdOrder<TSample>(FilterType::Allpass, highCrossover, Constant::Linearization::LR6InverseAllpassQ, 0.0, FilterType::Allpass, highCrossover, 0.0));
 		return filters;
+	}
+
+	template <typename TSample> IFilter<TSample>* FilterBank::CreateSixthOrder(FilterType biquad0Type, double biquad0F0, double biquad0Q, double biquad0GainInDB, FilterType firstOrder0Type, double firstOrder0F0, double firstOrder0GainInDB,
+																			   FilterType biquad1Type, double biquad1F0, double biquad1Q, double biquad1GainInDB, FilterType firstOrder1Type, double firstOrder1F0, double firstOrder1GainInDB)
+	{
+		double biquad0W0 = this->GetW0(biquad0F0);
+		double biquad0Alpha = this->GetAlpha(biquad0W0, biquad0Q);
+		BiquadCoefficients biquad0Coefficients = BiquadCoefficients::Create(static_cast<FilterTypeNative>(biquad0Type), biquad0W0, biquad0Alpha, biquad0GainInDB);
+
+		double firstOrder0W0 = this->GetW0(firstOrder0F0);
+		FirstOrderCoefficients firstOrder0Coefficients = FirstOrderCoefficients::Create(static_cast<FilterTypeNative>(firstOrder0Type), firstOrder0W0, firstOrder0GainInDB);
+
+		double biquad1W0 = this->GetW0(biquad1F0);
+		double biquad1Alpha = this->GetAlpha(biquad1W0, biquad1Q);
+		BiquadCoefficients biquad1Coefficients = BiquadCoefficients::Create(static_cast<FilterTypeNative>(biquad1Type), biquad1W0, biquad1Alpha, biquad1GainInDB);
+
+		double firstOrder1W0 = this->GetW0(firstOrder1F0);
+		FirstOrderCoefficients firstOrder1Coefficients = FirstOrderCoefficients::Create(static_cast<FilterTypeNative>(firstOrder1Type), firstOrder1W0, firstOrder1GainInDB);
+
+		FilterPrecision precision = this->MaybeResolveAdaptiveFilterPrecision(std::min(std::min(biquad0F0, firstOrder0F0), std::min(biquad1F0, firstOrder1F0)));
+		if (this->channels == 2 && Constant::StereoOptimizationEnabled)
+		{
+			switch (precision)
+			{
+			case FilterPrecision::Double:
+				return (IFilter<TSample>*)new StereoBiquad2FirstOrder2Double256(biquad0Coefficients, firstOrder0Coefficients, biquad1Coefficients, firstOrder1Coefficients);
+			default:
+				throw gcnew NotSupportedException(String::Format("Unhandled filter precision {0}.", precision));
+			}
+		}
+
+		throw gcnew NotSupportedException(String::Format("Unhandled number of channels: {0}.", this->channels));
 	}
 
 	SampleBlock^ FilterBank::Filter(SampleBlock^ block, SampleType dataPathSampleType, SampleType outputSampleType, SampleBlock^% recirculatingDataPathBlock)

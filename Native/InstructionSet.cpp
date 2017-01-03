@@ -8,7 +8,6 @@ namespace CrossTimeDsp::Dsp
 {
 	const InstructionSet::CpuInfo InstructionSet::Cpu;
 
-	#pragma unmanaged
 	InstructionSet::CpuInfo::CpuInfo() :
 		function1_Ecx{ 0 },
 		function7_Ebx{ 0 }
@@ -37,5 +36,20 @@ namespace CrossTimeDsp::Dsp
 		{
 			this->function7_Ebx = cpuIdentifiersExtended[7][1];
 		}
+	}
+
+	bool InstructionSet::Avx()
+	{ 
+		return Cpu.function1_Ecx[28]; 
+	}
+	
+	bool InstructionSet::Avx2()
+	{ 
+		return Cpu.function7_Ebx[5]; 
+	}
+
+	bool InstructionSet::Fma() 
+	{ 
+		return Cpu.function1_Ecx[12]; 
 	}
 }

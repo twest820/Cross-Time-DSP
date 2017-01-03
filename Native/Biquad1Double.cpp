@@ -4,7 +4,6 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	#pragma unmanaged
 	Biquad1Double::Biquad1Double(BiquadCoefficients coefficients, __int32 channels)
 	{
 		this->channels = channels;

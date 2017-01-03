@@ -5,7 +5,7 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	private class FirstOrder1Q31 : IFilter<__int32>
+	class __declspec(dllexport) FirstOrder1Q31 : public IFilter<__int32>
 	{
 	private:
 		Q31* a1;

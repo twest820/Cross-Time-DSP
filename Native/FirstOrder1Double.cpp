@@ -4,7 +4,6 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	#pragma unmanaged
 	FirstOrder1Double::FirstOrder1Double(FirstOrderCoefficients coefficients, __int32 channels)
 	{
 		this->channels = channels;

@@ -99,7 +99,13 @@
           - an LR6 correction at 200Hz to linearize an LR6 crossover at this frequency
           - an LR6 correction at 1.7kHz to linearize an LR6 crossover at this frequency
     -->
-    <thirdOrder timeDirection="Reverse">
+    <firstOrder timeDirection="Reverse" type="Allpass" f0="40"/>
+    <biquad timeDirection="Reverse" type="Allpass" f0="150" q="0.70710678118655"/>
+    <biquad timeDirection="Reverse" type="Allpass" f0="200" q="1.0"/>
+    <firstOrder timeDirection="Reverse" type="Allpass" f0="200"/>
+    <biquad timeDirection="Reverse" type="Allpass" f0="1700" q="1.0"/>
+    <firstOrder timeDirection="Reverse" type="Allpass" f0="1700"/>
+    <!--<thirdOrder timeDirection="Reverse">
       <biquad type="Allpass" f0="150" q="0.7071"/>
       <firstOrder f0="40"/>
     </thirdOrder>
@@ -110,7 +116,7 @@
     <thirdOrder timeDirection="Reverse">
       <biquad type="Allpass" f0="1700" q="1.0"/>
       <firstOrder f0="1700"/>
-    </thirdOrder>
+    </thirdOrder>-->
     <!-- When the engine precision is set to a fixed point mode an equivalent result can be obtained from stating these as
     
           <firstOrder timeDirection="Reverse" type="Allpass" f0="40"/>

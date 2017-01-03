@@ -1,7 +1,7 @@
 #pragma once
 namespace CrossTimeDsp::Dsp
 {
-	public enum class FilterType
+	enum class __declspec(dllexport) FilterTypeNative : __int32
 	{
 		Allpass,
 		Bandpass,

@@ -1,9 +1,8 @@
 #include "stdafx.h"
+#include <cmath>
 #include "Biquad1Q31_64x64.h"
 #include "Constant.h"
 #include "Q31.h"
-
-using namespace System;
 
 namespace CrossTimeDsp::Dsp
 {
@@ -12,7 +11,7 @@ namespace CrossTimeDsp::Dsp
 		// scale coefficients into Q0.31 so that state variables can be stored in Q0.63 for maximum precision
 		// the post shift is used to undo the scaling at output
 		this->postShift = Q63::GetQ31_64x64_PostShift(std::initializer_list<double>({ coefficients.A1, coefficients.A2, coefficients.B0, coefficients.B1, coefficients.B2 }));
-		double coefficientScaling = Math::Pow(2.0, -this->postShift);
+		double coefficientScaling = std::pow(2.0, -this->postShift);
 		this->a1 = new Q63(coefficientScaling * coefficients.A1, Q63::MaximumFractionalBits);
 		this->a2 = new Q63(coefficientScaling * coefficients.A2, Q63::MaximumFractionalBits);
 		this->b0 = new Q63(coefficientScaling * coefficients.B0, Q63::MaximumFractionalBits);

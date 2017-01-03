@@ -27,6 +27,6 @@ Also helpful is Atlassian's [https://www.atlassian.com/software/sourcetree](Sour
 * Cross Time DSP is supported and tested on Windows 10 Anniversary Update.  Windows 10 is required for ALAC or FLAC processing.
 * Cross Time DSP should also run without issue on Windows Server 2008 or newer and legacy Windows 8.1, 8, and 7 SP1 systems not updated to Windows 10.  Support is, however, limited.
 * Windows Vista SP2 and earlier and 32 bit versions of Windows are not supported.  Windows 7 users will need to [install .NET 4.6 or newer](https://msdn.microsoft.com/en-us/library/bb822049.aspx) if it's not already present.
-* Cross Time DSP requires an [Intel Core i3, i5, or i7 processor](https://en.wikipedia.org/wiki/Intel_Core) or equivalent.  45nm Core 2 processors (Penryn) will also work.
+* Cross Time DSP requires a second generation [Intel Core i3, i5, or i7 processor](https://en.wikipedia.org/wiki/Intel_Core) or equivalent (Sandy Bridge).
 * Visual Studio 2015 Community Update 3 or higher is required for development.
 

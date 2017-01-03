@@ -7,7 +7,7 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	private class Biquad1FirstOrder1Double : IFilter<double>
+	class __declspec(dllexport) Biquad1FirstOrder1Double : public IFilter<double>
 	{
 	private:
 		__int32 channels;

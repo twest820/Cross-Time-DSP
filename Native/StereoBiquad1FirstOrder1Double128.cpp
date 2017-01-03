@@ -1,10 +1,9 @@
 #include "stdafx.h"
-#include "StereoBiquad1FirstOrder1Double.h"
+#include "StereoBiquad1FirstOrder1Double128.h"
 
 namespace CrossTimeDsp::Dsp
 {
-#pragma unmanaged
-	StereoBiquad1FirstOrder1Double::StereoBiquad1FirstOrder1Double(BiquadCoefficients biquad, FirstOrderCoefficients firstOrder)
+	StereoBiquad1FirstOrder1Double128::StereoBiquad1FirstOrder1Double128(BiquadCoefficients biquad, FirstOrderCoefficients firstOrder)
 	{
 		this->biquad_a1 = _mm_set1_pd(biquad.A1);
 		this->biquad_a2 = _mm_set1_pd(biquad.A2);
@@ -23,7 +22,7 @@ namespace CrossTimeDsp::Dsp
 		this->firstOrder_y1 = _mm_setzero_pd();
 	}
 
-	void StereoBiquad1FirstOrder1Double::Filter(double* block, __int32 offset)
+	void StereoBiquad1FirstOrder1Double128::Filter(double* block, __int32 offset)
 	{
 		const register __m128d BiquadLoopB0 = this->biquad_b0;
 		const register __m128d BiquadLoopB1 = this->biquad_b1;
@@ -72,7 +71,7 @@ namespace CrossTimeDsp::Dsp
 		this->firstOrder_y1 = firstOrderLoop_y1;
 	}
 
-	void StereoBiquad1FirstOrder1Double::FilterReverse(double* block, __int32 offset)
+	void StereoBiquad1FirstOrder1Double128::FilterReverse(double* block, __int32 offset)
 	{
 		// VS2015.3 requires guidance in employing all 16 xmm registers to avoid loads and stores of filter coefficients and states
 		// Data is typically moved directly as instruction operands and doesn't require registers.  Since this is SSE, the accumulator occupies xmm0

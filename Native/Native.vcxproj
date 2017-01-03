@@ -1,14 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|Win32">
-      <Configuration>Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|Win32">
-      <Configuration>Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
@@ -19,52 +11,32 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{5A2F2E10-8DC5-4E80-8FD8-E6C78565F3B9}</ProjectGuid>
+    <ProjectGuid>{B789125B-EC00-4672-8B7E-943D4750C42E}</ProjectGuid>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
-    <Keyword>ManagedCProj</Keyword>
-    <RootNamespace>Native</RootNamespace>
+    <Keyword>DynamicLibrary</Keyword>
+    <RootNamespace>CrossTimeDsp</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
     <ProjectName>Native</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
-    <CLRSupport>true</CLRSupport>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
-    <CLRSupport>true</CLRSupport>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
-    <CLRSupport>true</CLRSupport>
+    <PlatformToolset>Intel C++ Compiler 17.0</PlatformToolset>
+    <CLRSupport>false</CLRSupport>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
-    <CLRSupport>true</CLRSupport>
+    <PlatformToolset>Intel C++ Compiler 17.0</PlatformToolset>
+    <CLRSupport>false</CLRSupport>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="Shared">
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -73,54 +45,26 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <LinkIncremental>true</LinkIncremental>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>$(SolutionDir)\Native\$(Platform)\$(Configuration)\</OutDir>
-    <TargetName>CrossTimeDsp.$(ProjectName)</TargetName>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <TargetName>CrossTimeDsp.$(ProjectName)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)\Native\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <TargetName>CrossTimeDsp.$(ProjectName)</TargetName>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-    </ClCompile>
-    <Link>
-      <AdditionalDependencies />
-    </Link>
-  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;IACA_MARKS_OFF;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <AdditionalOptions>/std:c++latest %(AdditionalOptions)</AdditionalOptions>
-      <EnableEnhancedInstructionSet>
-      </EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4752;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-    </ClCompile>
-    <Link>
-      <AdditionalDependencies />
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
@@ -129,15 +73,14 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;IACA_MARKS_OFF;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <AdditionalOptions>/std:c++latest /Zo %(AdditionalOptions)</AdditionalOptions>
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>Default</InlineFunctionExpansion>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
-      <EnableEnhancedInstructionSet>
-      </EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4752;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
@@ -157,9 +100,7 @@
     <ClInclude Include="Biquad1Q31_32x64.h" />
     <ClInclude Include="Biquad1Q31_64x64.h" />
     <ClInclude Include="Constant.h" />
-    <ClInclude Include="FilterBank.h" />
-    <ClInclude Include="FilterPrecision.h" />
-    <ClInclude Include="FilterType.h" />
+    <ClInclude Include="FilterTypeNative.h" />
     <ClInclude Include="FirstOrderCoefficients.h" />
     <ClInclude Include="FirstOrder1Double.h" />
     <ClInclude Include="FirstOrder1Q31.h" />
@@ -167,36 +108,34 @@
     <ClInclude Include="GainDouble.h" />
     <ClInclude Include="GainQ31.h" />
     <ClInclude Include="GainQ31_64x64.h" />
+    <ClInclude Include="IacaMarks.h" />
     <ClInclude Include="IFilter.h" />
     <ClInclude Include="InstructionSet.h" />
     <ClInclude Include="Q31.h" />
     <ClInclude Include="Q63.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="resource1.h" />
-    <ClInclude Include="SampleBlock.h" />
     <ClInclude Include="SampleConverter.h" />
-    <ClInclude Include="SampleType.h" />
     <ClInclude Include="Stdafx.h" />
-    <ClInclude Include="StereoBiquad1Double.h" />
+    <ClInclude Include="StereoBiquad1Double128.h" />
+    <ClInclude Include="StereoBiquad1Double256.h" />
     <ClInclude Include="StereoBiquad1Q31.h" />
     <ClInclude Include="StereoBiquad1Q31_32x64.h" />
     <ClInclude Include="StereoBiquad1Q31_64x64.h" />
-    <ClInclude Include="StereoFirstOrder1Double.h" />
+    <ClInclude Include="StereoBiquad2FirstOrder2Double256.h" />
+    <ClInclude Include="StereoFirstOrder1Double128.h" />
     <ClInclude Include="StereoFirstOrder1Q31.h" />
     <ClInclude Include="StereoFirstOrder1Q31_32x64.h" />
-    <ClInclude Include="StereoBiquad1FirstOrder1Double.h" />
+    <ClInclude Include="StereoBiquad1FirstOrder1Double128.h" />
     <ClInclude Include="Biquad1FirstOrder1Double.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="AssemblyInfo.cpp" />
     <ClCompile Include="BiquadCoefficients.cpp" />
     <ClCompile Include="Biquad1Double.cpp" />
     <ClCompile Include="Biquad1Q31.cpp" />
     <ClCompile Include="Biquad1Q31_32x64.cpp" />
     <ClCompile Include="Biquad1Q31_64x64.cpp" />
-    <ClCompile Include="FilterBank.cpp" />
-    <ClCompile Include="FilterPrecision.cpp" />
-    <ClCompile Include="FilterType.cpp" />
+    <ClCompile Include="FilterTypeNative.cpp" />
     <ClCompile Include="FirstOrderCoefficients.cpp" />
     <ClCompile Include="FirstOrder1Double.cpp" />
     <ClCompile Include="FirstOrder1Q31.cpp" />
@@ -208,23 +147,21 @@
     <ClCompile Include="InstructionSet.cpp" />
     <ClCompile Include="Q31.cpp" />
     <ClCompile Include="Q63.cpp" />
-    <ClCompile Include="SampleBlock.cpp" />
     <ClCompile Include="SampleConverter.cpp" />
-    <ClCompile Include="SampleType.cpp" />
     <ClCompile Include="Stdafx.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="StereoBiquad1Double.cpp" />
+    <ClCompile Include="StereoBiquad1Double128.cpp" />
+    <ClCompile Include="StereoBiquad1Double256.cpp" />
     <ClCompile Include="StereoBiquad1Q31.cpp" />
     <ClCompile Include="StereoBiquad1Q31_32x64.cpp" />
     <ClCompile Include="StereoBiquad1Q31_64x64.cpp" />
-    <ClCompile Include="StereoFirstOrder1Double.cpp" />
+    <ClCompile Include="StereoBiquad2FirstOrder2Double256.cpp" />
+    <ClCompile Include="StereoFirstOrder1Double128.cpp" />
     <ClCompile Include="StereoFirstOrder1Q31.cpp" />
     <ClCompile Include="StereoFirstOrder1Q31_32x64.cpp" />
-    <ClCompile Include="StereoBiquad1FirstOrder1Double.cpp" />
+    <ClCompile Include="StereoBiquad1FirstOrder1Double128.cpp" />
     <ClCompile Include="Biquad1FirstOrder1Double.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -5,7 +5,7 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	private class StereoFirstOrder1Q31 : IFilter<__int32>
+	class __declspec(dllexport) StereoFirstOrder1Q31 : public IFilter<__int32>
 	{
 	private:
 		__m128i a1;

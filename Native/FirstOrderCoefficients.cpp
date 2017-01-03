@@ -1,19 +1,19 @@
 #include "stdafx.h"
 #include <cmath>
+#include <stdexcept>
+#include <string>
 #include "FirstOrderCoefficients.h"
-
-using namespace System;
 
 namespace CrossTimeDsp::Dsp
 {
-	FirstOrderCoefficients FirstOrderCoefficients::Create(FilterType type, double w0, double gainInDB)
+	FirstOrderCoefficients FirstOrderCoefficients::Create(FilterTypeNative type, double w0, double gainInDB)
 	{
 		switch (type)
 		{
-		case FilterType::Allpass:
+		case FilterTypeNative::Allpass:
 			return FirstOrderCoefficients::CreateAllpass(w0, gainInDB);
 		default:
-			throw gcnew NotSupportedException(String::Format("Unhandled filter type {0}.", type));
+			throw std::invalid_argument("Unhandled filter type " + std::to_string((__int32)type) + ".");
 		}
 	}
 

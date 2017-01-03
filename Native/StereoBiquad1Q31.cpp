@@ -5,7 +5,6 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	#pragma unmanaged
 	StereoBiquad1Q31::StereoBiquad1Q31(BiquadCoefficients coefficients)
 	{
 		this->fractionalBitsInCoefficients = Q31::GetOptimalNumberOfFractionalBits(std::initializer_list<double>({ coefficients.A1, coefficients.A2, coefficients.B0, coefficients.B1, coefficients.B2 }));
@@ -23,7 +22,7 @@ namespace CrossTimeDsp::Dsp
 
 	void StereoBiquad1Q31::Filter(__int32* block, __int32 offset)
 	{
-		// See remarks in StereoBiquad1Q31::FilterReverse()
+		// see remarks in StereoBiquad1Q31::FilterReverse()
 		const register __m128i LoopB0 = this->b0;
 		const register __m128i LoopB1 = this->b1;
 		const register __m128i LoopB2 = this->b2;

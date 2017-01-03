@@ -7,7 +7,7 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	private class StereoBiquad1FirstOrder1Double : IFilter<double>
+	class __declspec(dllexport) StereoBiquad1FirstOrder1Double128 : public IFilter<double>
 	{
 	private:
 		__m128d biquad_a1;
@@ -27,7 +27,7 @@ namespace CrossTimeDsp::Dsp
 		__m128d firstOrder_y1;
 
 	public:
-		StereoBiquad1FirstOrder1Double(BiquadCoefficients biquad, FirstOrderCoefficients firstOrder);
+		StereoBiquad1FirstOrder1Double128(BiquadCoefficients biquad, FirstOrderCoefficients firstOrder);
 
 		virtual void Filter(double* block, __int32 offset);
 		virtual void FilterReverse(double* block, __int32 offset);

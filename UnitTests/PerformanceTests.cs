@@ -13,6 +13,15 @@ namespace CrossTimeDsp.UnitTests
     [TestClass]
     public class PerformanceTests : CrossTimeTest
     {
+        public int RunningIterations { get; set; }
+        public int WarmupIterations { get; set; }
+
+        public PerformanceTests()
+        {
+            this.RunningIterations = 25;
+            this.WarmupIterations = 10;
+        }
+
         [ClassInitialize]
         public static void ClassInitialize(TestContext testContext)
         {
@@ -33,6 +42,12 @@ namespace CrossTimeDsp.UnitTests
 
         [TestMethod]
         public void FlacToInt24ViaThirdOrderDouble()
+        {
+            this.FilterFirstTrackInLibrary(SampleType.Double, SampleType.Int24, "ThirdOrderDouble.xml");
+        }
+
+        [TestMethod]
+        public void FlacToInt24ViaThreeWayLinearizationDouble()
         {
             this.FilterFirstTrackInLibrary(SampleType.Double, SampleType.Int24, "LinearizeDouble.xml");
         }
@@ -60,14 +75,17 @@ namespace CrossTimeDsp.UnitTests
                 DateTime loadStoppedUtc = DateTime.UtcNow;
                 this.TestContext.WriteLine("{0}", (loadStoppedUtc - loadStartedUtc).ToString(Constant.ElapsedTimeFormat));
 
-                this.TestContext.WriteLine("Warmup iterations");
-                for (int warmup = 0; warmup < 10; ++warmup)
+                if (this.WarmupIterations > 0)
                 {
-                    this.FilterStream(dspEngine.Configuration, inputBuffer, dataPathSampleType, outputSampleType);
+                    this.TestContext.WriteLine("Warmup iterations");
+                    for (int warmup = 0; warmup < this.WarmupIterations; ++warmup)
+                    {
+                        this.FilterStream(dspEngine.Configuration, inputBuffer, dataPathSampleType, outputSampleType);
+                    }
                 }
 
                 this.TestContext.WriteLine("Running iterations");
-                for (int iteration = 0; iteration < 25; ++iteration)
+                for (int iteration = 0; iteration < this.RunningIterations; ++iteration)
                 {
                     this.FilterStream(dspEngine.Configuration, inputBuffer, dataPathSampleType, outputSampleType);
                 }

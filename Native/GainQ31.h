@@ -4,7 +4,7 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	private class GainQ31 : IFilter<__int32>
+	class __declspec(dllexport) GainQ31 : public IFilter<__int32>
 	{
 	private:
 		Q31* scaleFactor;

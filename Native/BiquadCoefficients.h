@@ -3,13 +3,13 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	private struct BiquadCoefficients : FirstOrderCoefficients
+	class __declspec(dllexport) BiquadCoefficients : public FirstOrderCoefficients
 	{
 	public:
 		double A2;
 		double B2;
 
-		static BiquadCoefficients Create(FilterType type, double w0, double alpha, double gainInDB);
+		static BiquadCoefficients Create(FilterTypeNative type, double w0, double alpha, double gainInDB);
 
 	private:
 		virtual void AdjustGain(double adjustmentInDB);

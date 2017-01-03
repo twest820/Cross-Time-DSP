@@ -1,6 +1,5 @@
 #pragma once
 #include <vector>
-#include "BiquadCoefficients.h"
 #include "FilterPrecision.h"
 #include "FilterType.h"
 #include "IFilter.h"
@@ -71,6 +70,8 @@ namespace CrossTimeDsp::Dsp
 		template <typename TSample> IFilter<TSample>* CreateGain(double gainInDB);
 		template <typename TSample> IFilter<TSample>* CreateThirdOrder(FilterType biquadType, double biquadF0, double biquadQ, double biquadGainInDB, FilterType firstOrderType, double firstOrderF0, double firstOrderGainInDB);
 		template <typename TSample> std::vector<IFilter<TSample>*> CreateThreeWayLinearization(double lowCrossover, double highCrossover, double wooferRolloff, double midRolloff, double gainInDB);
+		template <typename TSample> IFilter<TSample>* CreateSixthOrder(FilterType biquad0Type, double biquad0F0, double biquad0Q, double biquad0GainInDB, FilterType firstOrder0Type, double firstOrder0F0, double firstOrder0GainInDB,
+																	   FilterType biquad1Type, double biquad1F0, double biquad1Q, double biquad1GainInDB, FilterType firstOrder1Type, double firstOrder1F0, double firstOrder1GainInDB);
 
 		template <typename TSample> void Filter(std::vector<IFilter<TSample>*>* filters, TSample* block, __int32 blockLength, __int32 filterBlockSizeInSamples);
 		template <typename TSample> void FilterReverse(std::vector<IFilter<TSample>*>* filters, TSample* block, __int32 count, __int32 filterBlockSizeInSamples);

@@ -3,7 +3,7 @@
 
 namespace CrossTimeDsp::Dsp {
 
-	public class Constant
+	class __declspec(dllexport) Constant
 	{
 	public:
 		// size of sample block processed by an IFilter<TSample> implementation
@@ -29,8 +29,8 @@ namespace CrossTimeDsp::Dsp {
 		// TestConstant.ShiftBetween24BitSamplesAndQ31 needs to be synchronized with this value.
 		static const __int32 ShiftBetween24BitSamplesAndQ31 = 6;
 
-		static const bool Simd256ConversionEnabled = false;
-		static const bool Simd256FilteringEnabled = false;
+		static const bool Simd256SampleConversionEnabled = false;
+		static const int Simd256FilterOrderRequired = 8;
 		static const bool StereoOptimizationEnabled = true;
 
 		class Int24
@@ -64,7 +64,10 @@ namespace CrossTimeDsp::Dsp {
 		{
 		public:
 			static const int ExchangeLanes = _MM_SHUFFLE2(0, 1);
+			static const int ExtractUpper = 1;
+			static const int PermuteHighToLowAndLowToHigh2x128 = 0x21;
 			static const int InsertHigh = 1;
+			static const int InsertLow = 0;
 		};
 	};
 };

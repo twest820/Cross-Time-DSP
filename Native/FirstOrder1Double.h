@@ -6,7 +6,7 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	private class FirstOrder1Double : IFilter<double>
+	class __declspec(dllexport) FirstOrder1Double : public IFilter<double>
 	{
 	private:
 		double a1;

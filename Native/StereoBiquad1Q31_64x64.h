@@ -5,7 +5,7 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	private class StereoBiquad1Q31_64x64 : IFilter<__int32>
+	class __declspec(dllexport) StereoBiquad1Q31_64x64 : public IFilter<__int32>
 	{
 	private:
 		Q63* a1;

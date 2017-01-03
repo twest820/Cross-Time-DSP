@@ -6,7 +6,6 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	#pragma unmanaged
 	__m128i SampleConverter::Int24Max128;
 	__m256i SampleConverter::Int24Max256;
 	__m128i SampleConverter::Int24Min128;
@@ -69,7 +68,7 @@ namespace CrossTimeDsp::Dsp
 
 	void SampleConverter::DoubleToQ23(double* doubles, unsigned __int8* bytes, __int32 samples)
 	{
-		if (InstructionSet::Avx2() && Constant::Simd256ConversionEnabled)
+		if (InstructionSet::Avx2() && Constant::Simd256SampleConversionEnabled)
 		{
 			const __m256i ShuffleInt32ToInt24_256 = _mm256_setr_m128i(SampleConverter::ShuffleInt32ToInt24_128, SampleConverter::ShuffleInt32ToInt24_128);
 
@@ -131,7 +130,6 @@ namespace CrossTimeDsp::Dsp
 				_mm256_storeu2_m128i(destination + destinationIndex + 4, destination + destinationIndex + 1, epi24_14);
 				_mm256_storeu2_m128i(destination + destinationIndex + 5, destination + destinationIndex + 2, epi24_25);
 			}
-			_mm256_zeroupper();
 		}
 		else
 		{
@@ -196,7 +194,7 @@ namespace CrossTimeDsp::Dsp
 
 	void SampleConverter::Q15ToDouble(__int16* int16s, double* doubles, __int32 samples)
 	{
-		if (InstructionSet::Avx2() && Constant::Simd256ConversionEnabled)
+		if (InstructionSet::Avx2() && Constant::Simd256SampleConversionEnabled)
 		{
 			__m256i* source = reinterpret_cast<__m256i*>(int16s);
 			for (__int32 sample = 0; sample < samples; sample += 16)
@@ -224,7 +222,6 @@ namespace CrossTimeDsp::Dsp
 				_mm256_store_pd(doubles + sample + 8, pd2);
 				_mm256_store_pd(doubles + sample + 12, pd3);
 			}
-			_mm256_zeroupper();
 		}
 		else
 		{

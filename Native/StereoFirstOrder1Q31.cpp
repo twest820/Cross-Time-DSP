@@ -19,7 +19,7 @@ namespace CrossTimeDsp::Dsp
 
 	void StereoFirstOrder1Q31::Filter(__int32* block, __int32 offset)
 	{
-		// See remarks in StereoBiquad1Q31::FilterReverse()
+		// see remarks in StereoBiquad1Q31::FilterReverse()
 		const register __m128i LoopB0 = this->b0;
 		const register __m128i LoopB1 = this->b1;
 		const register __m128i LoopA1 = this->a1;
@@ -65,7 +65,7 @@ namespace CrossTimeDsp::Dsp
 
 	void StereoFirstOrder1Q31::FilterReverse(__int32* block, __int32 offset)
 	{
-		// See remarks in StereoBiquad1Q31::FilterReverse()
+		// see remarks in StereoBiquad1Q31::FilterReverse()
 		const register __m128i LoopB0 = this->b0;
 		const register __m128i LoopB1 = this->b1;
 		const register __m128i LoopA1 = this->a1;

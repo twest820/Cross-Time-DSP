@@ -3,7 +3,7 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	private class Q31
+	class Q31
 	{
 	private:
 		__int32 fractionalBits;

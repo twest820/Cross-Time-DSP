@@ -4,7 +4,7 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	public class InstructionSet
+	class InstructionSet
 	{
 	private:
 		class CpuInfo
@@ -19,9 +19,8 @@ namespace CrossTimeDsp::Dsp
 		static const CpuInfo Cpu;
 
 	public:
-		static bool Avx() { return Cpu.function1_Ecx[28]; }
-		static bool Avx2() { return Cpu.function7_Ebx[5]; }
-		static bool Fma() { return Cpu.function1_Ecx[12]; }
-		static bool Sse41() { return Cpu.function1_Ecx[19]; }
+		__declspec(dllexport) static bool Avx();
+		__declspec(dllexport) static bool Avx2();
+		__declspec(dllexport) static bool Fma();
 	};
 }

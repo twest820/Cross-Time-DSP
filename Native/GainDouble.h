@@ -5,7 +5,7 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	private class GainDouble : IFilter<double>
+	class __declspec(dllexport) GainDouble : public IFilter<double>
 	{
 	private:
 		union

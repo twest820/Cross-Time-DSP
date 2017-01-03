@@ -5,6 +5,9 @@ namespace CrossTimeDsp.UnitTests
     internal class TestConstant
     {
         public const string DefaultConfigurationFile = "BiquadFirstOrderDouble.xml";
+        public const double HalfRoot2 = 0.707106781186547524401;
+        public const double LR6InverseAllpassQ = 1.0;
+
         public const string ReferenceFilePath24Bit = "whiteNoise.InverseAllpass.44100.24.wav";
         public const string ReferenceFilePath16Bit = "whiteNoise.InverseAllpass.44100.16.wav";
         // scale factor is quirky as the initial 24 bit reference file was created with a slightly different approach towards

@@ -5,13 +5,11 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	#pragma unmanaged
 	GainDouble::GainDouble(double gain)
 	{
-		if (InstructionSet::Avx() && Constant::Simd256FilteringEnabled)
+		if (Constant::Simd256FilterOrderRequired <= 0)
 		{
 			this->gain256d = _mm256_set1_pd(gain);
-			_mm256_zeroupper();
 		}
 		else
 		{
@@ -27,7 +25,7 @@ namespace CrossTimeDsp::Dsp
 	void GainDouble::Filter(double* block, __int32 offset)
 	{
 		__int32 maxSample = offset + Constant::FilterBlockSizeInDoubles;
-		if (InstructionSet::Avx() && Constant::Simd256FilteringEnabled)
+		if (Constant::Simd256FilterOrderRequired <= 0)
 		{
 			for (__int32 sample = offset; sample < maxSample; sample += 4)
 			{
@@ -35,7 +33,6 @@ namespace CrossTimeDsp::Dsp
 				values = _mm256_mul_pd(this->gain256d, values);
 				_mm256_store_pd(block + sample, values);
 			}
-			_mm256_zeroupper();
 		}
 		else
 		{
@@ -51,7 +48,7 @@ namespace CrossTimeDsp::Dsp
 	void GainDouble::FilterReverse(double* block, __int32 offset)
 	{
 		__int32 maxSample = offset + Constant::FilterBlockSizeInDoubles;
-		if (InstructionSet::Avx() && Constant::Simd256FilteringEnabled)
+		if (Constant::Simd256FilterOrderRequired <= 0)
 		{
 			for (__int32 sample = maxSample - 4; sample >= offset; sample -= 4)
 			{
@@ -59,7 +56,6 @@ namespace CrossTimeDsp::Dsp
 				values = _mm256_mul_pd(this->gain256d, values);
 				_mm256_store_pd(block + sample, values);
 			}
-			_mm256_zeroupper();
 		}
 		else
 		{

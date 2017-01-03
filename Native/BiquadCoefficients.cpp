@@ -1,33 +1,33 @@
 #include "stdafx.h"
 #include <cmath>
+#include <stdexcept>
+#include <string>
 #include "BiquadCoefficients.h"
-
-using namespace System;
 
 namespace CrossTimeDsp::Dsp
 {
-	BiquadCoefficients BiquadCoefficients::Create(FilterType type, double w0, double alpha, double gainInDB)
+	BiquadCoefficients BiquadCoefficients::Create(FilterTypeNative type, double w0, double alpha, double gainInDB)
 	{
 		switch (type)
 		{
-		case FilterType::Allpass:
+		case FilterTypeNative::Allpass:
 			return BiquadCoefficients::CreateAllpass(w0, alpha, gainInDB);
-		case FilterType::Bandpass:
+		case FilterTypeNative::Bandpass:
 			return BiquadCoefficients::CreateBandpass(w0, alpha, gainInDB);
-		case FilterType::Highpass:
+		case FilterTypeNative::Highpass:
 			return BiquadCoefficients::CreateHighpass(w0, alpha, gainInDB);
-		case FilterType::HighShelf:
+		case FilterTypeNative::HighShelf:
 			return BiquadCoefficients::CreateHighShelf(w0, alpha, gainInDB);
-		case FilterType::Lowpass:
+		case FilterTypeNative::Lowpass:
 			return BiquadCoefficients::CreateLowpass(w0, alpha, gainInDB);
-		case FilterType::LowShelf:
+		case FilterTypeNative::LowShelf:
 			return BiquadCoefficients::CreateLowShelf(w0, alpha, gainInDB);
-		case FilterType::Notch:
+		case FilterTypeNative::Notch:
 			return BiquadCoefficients::CreateNotch(w0, alpha, gainInDB);
-		case FilterType::Peaking:
+		case FilterTypeNative::Peaking:
 			return BiquadCoefficients::CreatePeaking(w0, alpha, gainInDB);
 		default:
-			throw gcnew NotSupportedException(String::Format("Unhandled filter type {0}.", type));
+			throw std::invalid_argument("Unhandled filter type " + std::to_string((__int32)type) + ".");
 		}
 	}
 

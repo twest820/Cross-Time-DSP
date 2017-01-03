@@ -15,7 +15,17 @@ namespace CrossTimeDsp.UnitTests
     [TestClass]
     public class FunctionalTests : CrossTimeTest
     {
-        private Biquad CreateBiquad(FilterType type, double f0, double gainInDB, double q, TimeDirection timeDirection)
+        private FirstOrderFilter CreateFirstOrder(TimeDirection timeDirection, FilterType type, double f0, double gainInDB)
+        {
+            FirstOrderFilter firstOrder = new FirstOrderFilter();
+            firstOrder.F0 = f0;
+            firstOrder.GainInDB = gainInDB;
+            firstOrder.TimeDirection = timeDirection;
+            firstOrder.Type = type;
+            return firstOrder;
+        }
+
+        private Biquad CreateBiquad(TimeDirection timeDirection, FilterType type, double f0, double q, double gainInDB)
         {
             Biquad biquad = new Biquad();
             biquad.F0 = f0;
@@ -24,6 +34,15 @@ namespace CrossTimeDsp.UnitTests
             biquad.TimeDirection = timeDirection;
             biquad.Type = type;
             return biquad;
+        }
+
+        private ThirdOrderFilter CreateThirdOrder(TimeDirection timeDirection, FilterType biquadType, double biquadF0, double biquadQ, double biquadGainInDB, FilterType firstOrderType, double firstOrderF0, double firstOrderGainInDB)
+        {
+            ThirdOrderFilter thirdOrder = new ThirdOrderFilter();
+            thirdOrder.Biquad = this.CreateBiquad(timeDirection, biquadType, biquadF0, biquadQ, biquadGainInDB);
+            thirdOrder.FirstOrder = this.CreateFirstOrder(timeDirection, firstOrderType, firstOrderF0, firstOrderGainInDB);
+            thirdOrder.TimeDirection = timeDirection;
+            return thirdOrder;
         }
 
         [TestMethod]
@@ -83,17 +102,17 @@ namespace CrossTimeDsp.UnitTests
             // midrange
             engine.Configuration.Filters.Clear();
             // 200Hz LR6 highpass
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Highpass, 200.0, 0.0, 0.5, TimeDirection.Forward));
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Highpass, 200.0, 0.0, 1.0, TimeDirection.Forward));
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Highpass, 200.0, 0.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Highpass, 200.0, 0.5, 0.0));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Highpass, 200.0, 1.0, 0.0));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Highpass, 200.0, 1.0, 0.0));
             // 1700Hz LR6 lowpass
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 1700.0, 0.0, 0.5, TimeDirection.Forward));
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 1700.0, 0.0, 1.0, TimeDirection.Forward));
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 1700.0, 0.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Lowpass, 1700.0, 0.5, 0.0));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Lowpass, 1700.0, 1.0, 0.0));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Lowpass, 1700.0, 1.0, 0.0));
             // dipole EQ
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 150.0, 15.0, 0.5, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Peaking, 150.0, 0.5, 15.0));
             // driver EQ
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 550.0, 4.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Peaking, 550.0, 1.0, 4.0));
 
             engine.Configuration.Engine.Precision = FilterPrecision.Double;
             engine.FilterFiles(Environment.CurrentDirectory, TestConstant.SourceFilePath16Bit, midrangeFileNameDouble);
@@ -110,14 +129,14 @@ namespace CrossTimeDsp.UnitTests
             // tweeter
             engine.Configuration.Filters.Clear();
             // 1700Hz LR6 highpass
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Highpass, 1700.0, 0.0, 0.5, TimeDirection.Forward));
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Highpass, 1700.0, 0.0, 1.0, TimeDirection.Forward));
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Highpass, 1700.0, 0.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Highpass, 1700.0, 0.5, 0.0));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Highpass, 1700.0, 1.0, 0.0));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Highpass, 1700.0, 1.0, 0.0));
             // dipole EQ
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 1400.0, 5.0, 1.9, TimeDirection.Forward));
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 3800.0, -2.0, 3.0, TimeDirection.Forward));
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 7300.0, 3.5, 2.0, TimeDirection.Forward));
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 13000.0, -3.5, 4.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Peaking, 1400.0, 1.9, 5.0));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Peaking, 3800.0, 3.0, -2.0));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Peaking, 7300.0, 2.0, 3.5));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Peaking, 13000.0, 4.0, -3.5));
 
             Trace.TraceInformation(String.Empty);
             engine.Configuration.Engine.Precision = FilterPrecision.Double;
@@ -135,14 +154,14 @@ namespace CrossTimeDsp.UnitTests
             // subwoofer
             engine.Configuration.Filters.Clear();
             // 200Hz LR6 lowpass
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 200.0, 0.0, 0.5, TimeDirection.Forward));
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 200.0, 0.0, 1.0, TimeDirection.Forward));
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Lowpass, 200.0, 0.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Lowpass, 200.0, 0.5, 0.0));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Lowpass, 200.0, 1.0, 0.0));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Lowpass, 200.0, 1.0, 0.0));
             // dipole EQ
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 39.0, 14.0, 0.5, TimeDirection.Forward));
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Peaking, 180.0, 2.0, 1.0, TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Peaking, 39.0, 0.5, 14.0));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Peaking, 180.0, 1.0, 2.0));
             // forward time phase linearization
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Allpass, 150.0, 0.0, 0.5 * Math.Sqrt(2.0), TimeDirection.Forward));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Forward, FilterType.Allpass, 150.0, 0.5 * Math.Sqrt(2.0), 0.0));
 
             Trace.TraceInformation(String.Empty);
             engine.Configuration.Engine.Precision = FilterPrecision.Double;
@@ -158,14 +177,66 @@ namespace CrossTimeDsp.UnitTests
             this.VerifyWaveFilesEquivalent(subwooferFileNameQ31Adaptive, subwooferFileNameDouble, 1.0, 28.0 * TestConstant.Q23ToQ31TruncationErrorIncrease, true);
 
             // subwoofer with reverse time phase linearization
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Allpass, 200.0, 0.0, 1.0, TimeDirection.Reverse));
-            engine.Configuration.Filters.Add(this.CreateBiquad(FilterType.Allpass, 39.0, 0.0, 0.5 * Math.Sqrt(2.0), TimeDirection.Reverse));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Reverse, FilterType.Allpass, 200.0, 1.0, 0.0));
+            engine.Configuration.Filters.Add(this.CreateBiquad(TimeDirection.Reverse, FilterType.Allpass, 39.0, 0.5 * Math.Sqrt(2.0), 0.0));
 
             engine.Configuration.Engine.Precision = FilterPrecision.Double;
             engine.FilterFiles(Environment.CurrentDirectory, TestConstant.SourceFilePath16Bit, subwooferLinearizedFileNameDouble);
             engine.Configuration.Engine.Precision = FilterPrecision.Q31Adaptive;
             engine.FilterFiles(Environment.CurrentDirectory, TestConstant.SourceFilePath16Bit, subwooferLinearizedFileNameQ31Adaptive);
             this.VerifyWaveFilesEquivalent(subwooferLinearizedFileNameQ31Adaptive, subwooferLinearizedFileNameDouble, 1.0, 28.0 * TestConstant.Q23ToQ31TruncationErrorIncrease, true);
+        }
+
+        [TestMethod]
+        public void HigherOrder()
+        {
+            // setup
+            string thirdOrderEquivalentFileNameDouble = "thirdOrderEquivalent.44100.24.double.wav";
+            string thirdOrderFileNameDouble = "thirdOrder.44100.24.double.wav";
+            string threeWayEquivalentFileNameDouble = "threeWayEquivalent.44100.24.double.wav";
+            string threeWayFileNameDouble = "threeWay.44100.24.double.wav";
+            this.RemoveExistingOutputFiles(thirdOrderEquivalentFileNameDouble, thirdOrderFileNameDouble, threeWayEquivalentFileNameDouble, threeWayFileNameDouble);
+            CrossTimeEngine engine = new CrossTimeEngine(TestConstant.DefaultConfigurationFile, this);
+            ThirdOrderFilter thirdOrderForward = this.CreateThirdOrder(TimeDirection.Forward, FilterType.Highpass, 3000, TestConstant.HalfRoot2, 0.0, FilterType.Allpass, 3000, 0.0);
+            ThirdOrderFilter thirdOrderReverse = this.CreateThirdOrder(TimeDirection.Reverse, FilterType.Allpass, 3000, TestConstant.HalfRoot2, 0.0, FilterType.Allpass, 3000, 0.0);
+
+            // third order
+            engine.Configuration.Filters.Clear();
+            engine.Configuration.Filters.Add(thirdOrderForward);
+            engine.Configuration.Filters.Add(thirdOrderReverse);
+            engine.FilterFiles(Environment.CurrentDirectory, TestConstant.SourceFilePath16Bit, thirdOrderFileNameDouble);
+
+            // biquad and first order equivalent
+            engine.Configuration.Filters.Clear();
+            engine.Configuration.Filters.Add(thirdOrderForward.Biquad);
+            engine.Configuration.Filters.Add(thirdOrderForward.FirstOrder);
+            engine.Configuration.Filters.Add(thirdOrderReverse.Biquad);
+            engine.Configuration.Filters.Add(thirdOrderReverse.FirstOrder);
+            engine.FilterFiles(Environment.CurrentDirectory, TestConstant.SourceFilePath16Bit, thirdOrderEquivalentFileNameDouble);
+
+            // three way linearization
+            engine.Configuration.Filters.Clear();
+            LinearizeThreeWay linearizeThreeWay = new LinearizeThreeWay();
+            linearizeThreeWay.GainInDB = -10.0;
+            linearizeThreeWay.HighCrossover = 1700.0;
+            linearizeThreeWay.LowCrossover = 200.0;
+            linearizeThreeWay.MidRolloff = 150.0;
+            linearizeThreeWay.WooferRolloff = 40.0;
+            linearizeThreeWay.TimeDirection = TimeDirection.Reverse;
+            engine.Configuration.Filters.Add(linearizeThreeWay);
+            engine.FilterFiles(Environment.CurrentDirectory, TestConstant.SourceFilePath16Bit, threeWayFileNameDouble);
+
+            // three way equivalent
+            engine.Configuration.Filters.Clear();
+            engine.Configuration.Filters.Add(this.CreateBiquad(linearizeThreeWay.TimeDirection, FilterType.Allpass, linearizeThreeWay.MidRolloff, TestConstant.HalfRoot2, linearizeThreeWay.GainInDB));
+            engine.Configuration.Filters.Add(this.CreateFirstOrder(linearizeThreeWay.TimeDirection, FilterType.Allpass, linearizeThreeWay.WooferRolloff, 0.0));
+            engine.Configuration.Filters.Add(this.CreateBiquad(linearizeThreeWay.TimeDirection, FilterType.Allpass, linearizeThreeWay.LowCrossover, TestConstant.LR6InverseAllpassQ, 0.0));
+            engine.Configuration.Filters.Add(this.CreateFirstOrder(linearizeThreeWay.TimeDirection, FilterType.Allpass, linearizeThreeWay.LowCrossover, 0.0));
+            engine.Configuration.Filters.Add(this.CreateBiquad(linearizeThreeWay.TimeDirection, FilterType.Allpass, linearizeThreeWay.HighCrossover, TestConstant.LR6InverseAllpassQ, 0.0));
+            engine.Configuration.Filters.Add(this.CreateFirstOrder(linearizeThreeWay.TimeDirection, FilterType.Allpass, linearizeThreeWay.HighCrossover, 0.0));
+            engine.FilterFiles(Environment.CurrentDirectory, TestConstant.SourceFilePath16Bit, threeWayEquivalentFileNameDouble);
+
+            this.VerifyWaveFilesEquivalent(threeWayFileNameDouble, threeWayEquivalentFileNameDouble, 1.0, TestConstant.Q23ToQ31TruncationErrorIncrease, true);
         }
 
         [TestMethod]

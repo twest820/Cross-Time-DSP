@@ -6,7 +6,7 @@
 
 namespace CrossTimeDsp::Dsp
 {
-	private class StereoFirstOrder1Double : IFilter<double>
+	class __declspec(dllexport) StereoFirstOrder1Double128 : public IFilter<double>
 	{
 	private:
 		__m128d a1;
@@ -16,7 +16,7 @@ namespace CrossTimeDsp::Dsp
 		__m128d y1;
 
 	public:
-		StereoFirstOrder1Double(FirstOrderCoefficients coefficients);
+		StereoFirstOrder1Double128(FirstOrderCoefficients coefficients);
 
 		virtual void Filter(double* block, __int32 offset);
 		virtual void FilterReverse(double* block, __int32 offset);
